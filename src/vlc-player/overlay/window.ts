@@ -13,7 +13,7 @@ import { resolveOverlayDir } from '../../overlay-path';
 import { registerSeekPreviewProtocol } from '../../preview-protocol';
 import type { VlcOverlayContextMenuPayload } from '../../types';
 import { VlcState } from '../../vlc-constants';
-import { SEEK_END_MARGIN_MS } from '../constants';
+import { SEEK_END_MARGIN_MS, SUBTITLE_FILE_EXTENSIONS } from '../constants';
 import type { VlcPlayerHost } from '../host';
 import type { OverlayPlaybackCache, OverlayTrackCache } from '../types';
 import { OverlayTracksMenuController } from './tracks-menu';
@@ -719,7 +719,7 @@ export class OverlayWindowController {
         filters: [
           {
             name: this.host.strings.subtitleFileFilter,
-            extensions: ['srt', 'vtt', 'ass', 'ssa', 'sub', 'idx', 'sup', 'txt'],
+            extensions: [...SUBTITLE_FILE_EXTENSIONS],
           },
           { name: this.host.strings.allFilesFilter, extensions: ['*'] },
         ],

@@ -308,9 +308,13 @@ html.evp-cursor-hidden * {
   opacity: 0.55;
 }
 
-.evp-seek-preview-btn:disabled {
+#controls button.text-btn:disabled {
   opacity: 0.75;
   cursor: default;
+}
+
+#controls button.text-btn:disabled:hover {
+  color: var(--evp-btn-color);
 }
 
 .seek-preview-time {
