@@ -110,31 +110,33 @@ async function main() {
 
   if (!appRoot) {
     console.warn(
-      '[electron-vlc-player] 无法定位应用根目录，跳过 native 编译。',
+      '[electron-vlc-player] Could not locate app root; skipping native rebuild.',
     );
-    console.warn('  安装 electron 后请执行：');
+    console.warn('  After installing electron, run:');
     warnManualRebuild();
     return;
   }
 
   if (!electronVersion) {
-    console.warn('[electron-vlc-player] 未检测到 electron，跳过 native 编译。');
-    console.warn('  请先安装 electron，然后执行：');
+    console.warn('[electron-vlc-player] electron not found; skipping native rebuild.');
+    console.warn('  Install electron first, then run:');
     warnManualRebuild();
     return;
   }
 
   console.log(
-    `[electron-vlc-player] 正在为 Electron ${electronVersion} 编译 native 模块…`,
+    `[electron-vlc-player] Rebuilding native module for Electron ${electronVersion}…`,
   );
   const ok =
     (await rebuildWithModule(appRoot, electronVersion)) || rebuildWithNpx(appRoot);
   if (!ok) {
-    console.warn('[electron-vlc-player] Electron 编译失败。请确认已安装平台构建工具，然后执行：');
+    console.warn(
+      '[electron-vlc-player] Electron rebuild failed. Install platform build tools, then run:',
+    );
     warnManualRebuild();
   }
 }
 
 main().catch((err) => {
-  console.warn('[electron-vlc-player] install 脚本异常:', err.message);
+  console.warn('[electron-vlc-player] install script error:', err.message);
 });

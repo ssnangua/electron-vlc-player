@@ -419,7 +419,7 @@ Use `parseMedia()` for metadata, tracks, and duration.
 player.setSource("/path/to/video.mp4");
 player
   .parseMedia()
-  .then(({ metadata, tracks, tracksNotice, length, info }) => {
+  .then(({ metadata, tracks, tracksCode, tracksMessage, length, info }) => {
     console.log(metadata.title, tracks, length);
   })
   .catch((err) => console.error(err));
@@ -446,9 +446,10 @@ After parse, `getMediaMetadataResult()` returns metadata; while playing, `getMed
 > **Do not read media track tables while paused** (can crash). Prefer during playback or after stop.
 
 ```ts
-const { data: meta, notice } = player.getMediaMetadataResult();
-const { data: tracks, notice: tracksNotice } = player.getMediaTracksResult();
-// If not parsed, `notice` suggests calling parseMedia() first; non-empty notice means incomplete data
+const { data: meta, code, message } = player.getMediaMetadataResult();
+const { data: tracks, code: tracksCode, message: tracksMessage } =
+  player.getMediaTracksResult();
+// If not parsed, `code` is MEDIA_NOT_PARSED; non-empty `code` means incomplete data — map `code` to your UI strings
 ```
 
 #### `probeMedia()` — without loading into the player

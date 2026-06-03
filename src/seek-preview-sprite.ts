@@ -513,7 +513,7 @@ async function probeDurationMs(
   const parsed = parseDurationMsFromFfmpeg(stderr);
   if (parsed != null && parsed > 0) return parsed;
   if (fallbackDurationMs != null && fallbackDurationMs > 0) return fallbackDurationMs;
-  throw new Error('无法解析视频时长（ffmpeg Duration 与 fallback 均无效）');
+  throw new Error('Unable to determine video duration (ffmpeg Duration and fallback both invalid)');
 }
 
 export async function runGenerateSeekPreviewSprite(
@@ -564,7 +564,7 @@ export async function runGenerateSeekPreviewSprite(
   ]);
 
   if (!fs.existsSync(spritePath) || fs.statSync(spritePath).size < 512) {
-    throw new Error('ffmpeg 未生成有效雪碧图');
+    throw new Error('ffmpeg did not produce a valid sprite image');
   }
 
   onProgress?.(99);

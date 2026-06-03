@@ -419,7 +419,7 @@ player.on("overlayContextMenu", () => {
 player.setSource("/path/to/video.mp4");
 player
   .parseMedia()
-  .then(({ metadata, tracks, tracksNotice, length, info }) => {
+  .then(({ metadata, tracks, tracksCode, tracksMessage, length, info }) => {
     console.log(metadata.title, tracks, length);
   })
   .catch((err) => console.error(err));
@@ -446,9 +446,10 @@ const audio = player.getAudioTracks().find((t) => t.id === audioId);
 > **Paused 状态勿读 media 轨表**（易崩溃），完整轨表请在播放中或停止后获取。
 
 ```ts
-const { data: meta, notice } = player.getMediaMetadataResult();
-const { data: tracks, notice: tracksNotice } = player.getMediaTracksResult();
-// 未 parse 时 `notice` 会提示先调用 parseMedia()；非空 notice 仅表示结果可能不完整
+const { data: meta, code, message } = player.getMediaMetadataResult();
+const { data: tracks, code: tracksCode, message: tracksMessage } =
+  player.getMediaTracksResult();
+// 未 parse 时 `code` 为 MEDIA_NOT_PARSED；`code` 非空表示结果可能不完整——请按 `code` 映射界面文案
 ```
 
 #### `probeMedia()` — 不加载进播放器

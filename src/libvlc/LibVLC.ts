@@ -10,14 +10,16 @@ import type {
   VideoSize,
   VlcBinding,
 } from '../native';
-import type {
-  MediaMetadataResult,
-  MediaParsedResult,
-  MediaTracksResult,
-  VlcPlayerEventPayload,
-  VlcSetSourceOptions,
-  VlcTrackChangedPayload,
-  VlcTrackKind,
+import {
+  MediaQueryCode,
+  type MediaMetadataResult,
+  type MediaParsedResult,
+  type MediaTracksResult,
+  type VlcPlayerEventPayload,
+  type VlcSetSourceOptions,
+  type VlcTrackChangedPayload,
+  type VlcTrackKind,
+  type MediaQueryCode as MediaQueryCodeType,
 } from '../types';
 import { VlcEvent, VlcState, VlcTrackType } from '../vlc-constants';
 import { vlcEventName } from '../vlc-event-names';
@@ -27,8 +29,27 @@ export type {
   MediaParsedResult,
   MediaTracksResult,
   MediaQueryResult,
+  VlcPlayerEventPayload,
+  VlcTrackChangedPayload,
+  VlcTrackKind,
 } from '../types';
-export type { VlcPlayerEventPayload, VlcTrackChangedPayload, VlcTrackKind } from '../types';
+
+const MEDIA_QUERY_MESSAGES = {
+  [MediaQueryCode.PLAYER_NOT_READY]: 'Player not ready',
+  [MediaQueryCode.MEDIA_NOT_PARSED]: 'Media not parsed yet; call parseMedia() first',
+  [MediaQueryCode.METADATA_UNAVAILABLE]: 'Unable to read metadata at this time',
+  [MediaQueryCode.MEDIA_OPENING]:
+    'Media is opening or buffering; retry later or use parseMedia() to wait until ready',
+  [MediaQueryCode.TRACKS_SWITCHABLE_ONLY]:
+    'libVLC 3.x exposes only switchable tracks while playing; stop playback for full stream details',
+  [MediaQueryCode.TRACKS_PARTIAL]:
+    'Detailed stream info unavailable; returned switchable track list instead',
+  [MediaQueryCode.STREAM_INFO_UNAVAILABLE]: 'Unable to read stream info at this time',
+} satisfies Record<MediaQueryCodeType, string>;
+
+function mediaQueryMessage(code: MediaQueryCodeType, override?: string): string {
+  return override ?? MEDIA_QUERY_MESSAGES[code];
+}
 
 /**
  * libVLC 媒体播放器 API（对应一个 native player id）。
@@ -499,7 +520,8 @@ export class LibVLC extends EventEmitter {
       info: this.getMediaInfo(),
       metadata: metaR.data,
       tracks: tracksR.data,
-      tracksNotice: tracksR.notice,
+      tracksCode: tracksR.code,
+      tracksMessage: tracksR.message,
       length: this.getLength(),
     };
   }
@@ -551,21 +573,24 @@ export class LibVLC extends EventEmitter {
   }
 
   /**
-   * 读取元数据（标题、艺术家等）。任意时刻可调用；未就绪时 `data` 为空对象，见 `notice`。
+   * 读取元数据（标题、艺术家等）。任意时刻可调用；未就绪时 `data` 为空对象，见 `code` / `message`。
    */
   getMediaMetadataResult(): MediaMetadataResult {
     const info = this.getMediaInfoForQuery();
     if (!info) {
-      return { data: {}, notice: '播放器未就绪' };
+      const code = MediaQueryCode.PLAYER_NOT_READY;
+      return { data: {}, code, message: mediaQueryMessage(code) };
     }
     if (!info.parsed) {
-      return { data: {}, notice: '媒体尚未解析，请先调用 parseMedia()' };
+      const code = MediaQueryCode.MEDIA_NOT_PARSED;
+      return { data: {}, code, message: mediaQueryMessage(code) };
     }
     try {
       const data = this.b().getMediaMetadata(this.requirePlayerId(), false, 0);
       return { data };
     } catch {
-      return { data: {}, notice: '暂时无法读取元数据' };
+      const code = MediaQueryCode.METADATA_UNAVAILABLE;
+      return { data: {}, code, message: mediaQueryMessage(code) };
     }
   }
 
@@ -573,17 +598,19 @@ export class LibVLC extends EventEmitter {
     return this.getMediaMetadataResult().data;
   }
 
-  private tracksResultFromPlayerDescriptions(notice: string): MediaTracksResult {
+  private tracksResultFromPlayerDescriptions(
+    code: MediaQueryCodeType,
+    message?: string,
+  ): MediaTracksResult {
     const fallback = this.tracksFromPlayerDescriptions();
+    if (!fallback.length) {
+      return { data: [] };
+    }
     return {
       data: fallback,
-      notice: fallback.length ? notice : undefined,
+      code,
+      message: mediaQueryMessage(code, message),
     };
-  }
-
-  /** 无法走 native 全轨表时的说明 */
-  private nativeTracksFallbackNotice(): string {
-    return 'libVLC 3.x 播放中仅显示可切换轨，完整编解码请在停止后查看';
   }
 
   /**
@@ -592,19 +619,19 @@ export class LibVLC extends EventEmitter {
   getMediaTracksResult(): MediaTracksResult {
     const info = this.getMediaInfoForQuery();
     if (!info) {
-      return { data: [], notice: '播放器未就绪' };
+      const code = MediaQueryCode.PLAYER_NOT_READY;
+      return { data: [], code, message: mediaQueryMessage(code) };
     }
     if (!info.parsed) {
-      return { data: [], notice: '媒体尚未解析，请先调用 parseMedia()' };
+      const code = MediaQueryCode.MEDIA_NOT_PARSED;
+      return { data: [], code, message: mediaQueryMessage(code) };
     }
     if (!this.isPlayerStableForMediaWork()) {
-      return {
-        data: [],
-        notice: '媒体正在打开或缓冲，请稍后再试或使用 parseMedia() 等待就绪',
-      };
+      const code = MediaQueryCode.MEDIA_OPENING;
+      return { data: [], code, message: mediaQueryMessage(code) };
     }
     if (!this.canQueryNativeMediaTracks()) {
-      return this.tracksResultFromPlayerDescriptions(this.nativeTracksFallbackNotice());
+      return this.tracksResultFromPlayerDescriptions(MediaQueryCode.TRACKS_SWITCHABLE_ONLY);
     }
 
     try {
@@ -614,20 +641,29 @@ export class LibVLC extends EventEmitter {
       }
       const fallback = this.tracksFromPlayerDescriptions();
       if (fallback.length > 0) {
+        const code = MediaQueryCode.TRACKS_PARTIAL;
         return {
           data: fallback,
-          notice: '无法读取详细流信息，已返回可切换轨列表',
+          code,
+          message: mediaQueryMessage(code),
         };
       }
       return { data: [] };
     } catch {
       const fallback = this.tracksFromPlayerDescriptions();
-      return {
-        data: fallback,
-        notice: fallback.length
-          ? '读取流信息失败，已返回可切换轨列表'
-          : '暂时无法读取流信息',
-      };
+      if (fallback.length) {
+        const code = MediaQueryCode.TRACKS_PARTIAL;
+        return {
+          data: fallback,
+          code,
+          message: mediaQueryMessage(
+            code,
+            'Failed to read stream info; returned switchable track list instead',
+          ),
+        };
+      }
+      const code = MediaQueryCode.STREAM_INFO_UNAVAILABLE;
+      return { data: [], code, message: mediaQueryMessage(code) };
     }
   }
 

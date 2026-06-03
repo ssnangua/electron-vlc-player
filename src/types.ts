@@ -116,10 +116,24 @@ export interface VlcPlayerEventPayload {
   trackId?: number;
 }
 
-/** 媒体查询结果：始终有数据字段；`notice` 非空表示结果可能不完整（非异常） */
+/** Machine-readable status for {@link MediaQueryResult} (omit when query succeeded normally). */
+export const MediaQueryCode = {
+  PLAYER_NOT_READY: 'PLAYER_NOT_READY',
+  MEDIA_NOT_PARSED: 'MEDIA_NOT_PARSED',
+  METADATA_UNAVAILABLE: 'METADATA_UNAVAILABLE',
+  MEDIA_OPENING: 'MEDIA_OPENING',
+  TRACKS_SWITCHABLE_ONLY: 'TRACKS_SWITCHABLE_ONLY',
+  TRACKS_PARTIAL: 'TRACKS_PARTIAL',
+  STREAM_INFO_UNAVAILABLE: 'STREAM_INFO_UNAVAILABLE',
+} as const;
+
+export type MediaQueryCode = (typeof MediaQueryCode)[keyof typeof MediaQueryCode];
+
+/** 媒体查询结果：始终有 `data`；`code` 非空表示结果可能不完整（非异常，不抛错） */
 export interface MediaQueryResult<T> {
   data: T;
-  notice?: string;
+  code?: MediaQueryCode;
+  message?: string;
 }
 
 export type MediaMetadataResult = MediaQueryResult<MediaMetadata>;
@@ -130,8 +144,10 @@ export interface MediaParsedResult {
   info: MediaInfo;
   metadata: MediaMetadata;
   tracks: MediaStreamInfo[];
-  /** 与 `getMediaTracksResult().notice` 相同；非空表示轨信息可能不完整 */
-  tracksNotice?: string;
+  /** 与 `getMediaTracksResult().code` 相同；非空表示轨信息可能不完整 */
+  tracksCode?: MediaQueryCode;
+  /** 与 `getMediaTracksResult().message` 相同 */
+  tracksMessage?: string;
   /** 当前播放器报告的时长（毫秒），0 表示未知 */
   length: number;
 }

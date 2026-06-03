@@ -86,12 +86,12 @@ export class SeekPreviewController {
     if (this.host.destroyed) return;
     if (this.seekPreviewGenerating) return;
     if (!isLocalMediaSource(this.host.source)) {
-      this.host.emit('seekPreviewError', new Error('仅本地文件支持生成悬停预览'));
+      this.host.emit('seekPreviewError', new Error('Seek preview generation supports local files only'));
       return;
     }
     const ffmpeg = resolveFfmpegExecutable(SeekPreviewController.ffmpegPath);
     if (!ffmpeg || !this.host.source) {
-      this.host.emit('seekPreviewError', new Error('未设置有效 ffmpeg 路径'));
+      this.host.emit('seekPreviewError', new Error('No valid ffmpeg path configured'));
       return;
     }
 
@@ -99,7 +99,7 @@ export class SeekPreviewController {
     const mediaKey = previewMediaKeyFromSource(source);
     const localPath = resolveLocalPathForFfmpeg(source);
     if (!fs.existsSync(localPath)) {
-      this.host.emit('seekPreviewError', new Error(`本地文件不存在：${localPath}`));
+      this.host.emit('seekPreviewError', new Error(`Local file not found: ${localPath}`));
       return;
     }
 

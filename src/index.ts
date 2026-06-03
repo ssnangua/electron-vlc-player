@@ -8,12 +8,13 @@ export {
 export type { VlcPlayerLocale, VlcPlayerStrings } from './i18n';
 export { VlcPlayer } from './vlc-player';
 export { LibVLC, getLibVlcVersion } from './libvlc';
-export type {
-  MediaParsedResult,
-  MediaMetadataResult,
-  MediaTracksResult,
-  MediaQueryResult,
-  MediaProbeResult,
+export {
+  MediaQueryCode,
+  type MediaParsedResult,
+  type MediaMetadataResult,
+  type MediaTracksResult,
+  type MediaQueryResult,
+  type MediaProbeResult,
 } from './types';
 export {
   getBinding,
