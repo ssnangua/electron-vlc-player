@@ -88,6 +88,8 @@ jobs:
     needs: merge-prebuilds
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
 
