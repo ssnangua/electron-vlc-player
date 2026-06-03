@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: evp-preview:"
+    />
+    <link rel="stylesheet" href="controls.css" />
+  </head>
+  <body>
+    <div id="root">
+      <div id="fs-title" class="fs-title" aria-hidden="true">
+        <span id="fs-title-text" class="fs-title-text"></span>
+      </div>
+      <div
+        id="top-osd"
+        class="top-osd"
+        aria-live="polite"
+        aria-hidden="true"
+        hidden
+      ></div>
+      <button
+        type="button"
+        id="hit-area"
+        tabindex="-1"
+        aria-label="Click to play/pause, double-click for window fullscreen"
+      ></button>
+      <div id="controls">
+        <div class="controls-row controls-row-seek">
+          <div id="seek-preview" class="seek-preview" hidden>
+            <div id="seek-preview-thumb" class="seek-preview-thumb" hidden></div>
+            <span id="seek-preview-time" class="seek-preview-time"></span>
+          </div>
+          <input
+            id="seek"
+            type="range"
+            class="evp-range evp-range-h"
+            min="0"
+            max="1000"
+            value="0"
+            tabindex="-1"
+            aria-label="Playback progress"
+          />
+        </div>
+        <div class="controls-row controls-row-bar">
+          <div class="controls-left">
+            <button
+              id="btn-prev"
+              type="button"
+              class="icon-btn evp-nav-hidden"
+              hidden
+              aria-label="Previous media"
+              title="Previous media"
+            >
+              <img src="assets/prev.svg" alt="" />
+            </button>
+            <button id="btn-play" type="button" class="icon-btn" aria-label="Play / pause">
+              <img id="icon-play" src="assets/play.svg" alt="" />
+              <img id="icon-pause" class="hidden" src="assets/pause.svg" alt="" />
+            </button>
+            <button
+              id="btn-next"
+              type="button"
+              class="icon-btn evp-nav-hidden"
+              hidden
+              aria-label="Next media"
+              title="Next media"
+            >
+              <img src="assets/next.svg" alt="" />
+            </button>
+            <span id="time-display" class="time-display">00:00 / 00:00</span>
+            <button
+              id="btn-seek-preview"
+              type="button"
+              class="text-btn evp-seek-preview-btn"
+              hidden
+              aria-label="Generate hover preview"
+              title="Generate hover preview"
+            >
+              Generate preview
+            </button>
+          </div>
+          <div class="controls-right">
+            <div class="menu-wrap" id="speed-wrap">
+              <button
+                id="btn-speed"
+                type="button"
+                class="text-btn"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                Speed
+              </button>
+              <div id="speed-menu" class="popup-menu" hidden role="listbox">
+                <button type="button" data-rate="2">2.0x</button>
+                <button type="button" data-rate="1.5">1.5x</button>
+                <button type="button" data-rate="1.25">1.25x</button>
+                <button type="button" data-rate="1" class="active">1.0x</button>
+                <button type="button" data-rate="0.75">0.75x</button>
+                <button type="button" data-rate="0.5">0.5x</button>
+              </div>
+            </div>
+            <div class="menu-wrap" id="audio-wrap">
+              <button
+                id="btn-audio"
+                type="button"
+                class="text-btn"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                Audio
+              </button>
+              <div id="audio-menu" class="popup-menu popup-track-menu" hidden role="listbox"></div>
+            </div>
+            <div class="menu-wrap" id="subtitle-wrap">
+              <button
+                id="btn-subtitle"
+                type="button"
+                class="text-btn"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                Subtitles
+              </button>
+              <div
+                id="subtitle-menu"
+                class="popup-menu popup-track-menu"
+                hidden
+                role="listbox"
+              ></div>
+            </div>
+            <div class="menu-wrap" id="volume-wrap">
+              <button
+                id="btn-volume"
+                type="button"
+                class="icon-btn"
+                aria-label="Volume"
+                title="Click to toggle mute"
+              >
+                <img id="icon-volume" src="assets/volume-high.svg" alt="" />
+              </button>
+              <div id="volume-popup" class="popup-volume" hidden>
+                <span id="volume-popup-value">100</span>
+                <div class="volume-slider-wrap">
+                  <input
+                    id="volume-slider"
+                    type="range"
+                    class="evp-range evp-range-v"
+                    min="0"
+                    max="100"
+                    value="100"
+                    tabindex="-1"
+                    aria-label="Volume"
+                  />
+                </div>
+              </div>
+            </div>
+            <button
+              id="btn-page-fs"
+              type="button"
+              class="icon-btn"
+              aria-label="Page fullscreen"
+              title="Page fullscreen"
+            >
+              <img
+                id="icon-enter-page-fs"
+                src="assets/enter-page-fullscreen.svg"
+                alt=""
+              />
+              <img
+                id="icon-leave-page-fs"
+                class="hidden"
+                src="assets/leave-page-fullscreen.svg"
+                alt=""
+              />
+            </button>
+            <button
+              id="btn-window-fs"
+              type="button"
+              class="icon-btn"
+              aria-label="Fullscreen"
+              title="Fullscreen"
+            >
+              <img
+                id="icon-enter-window-fs"
+                src="assets/enter-fullscreen.svg"
+                alt=""
+              />
+              <img
+                id="icon-leave-window-fs"
+                class="hidden"
+                src="assets/leave-fullscreen.svg"
+                alt=""
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="seek-mini" class="seek-mini" aria-hidden="true">
+        <div id="seek-mini-fill" class="seek-mini-fill"></div>
+      </div>
+    </div>
+    <script src="locale-fallback.js"></script>
+    <script src="controls.js"></script>
+  </body>
+</html>

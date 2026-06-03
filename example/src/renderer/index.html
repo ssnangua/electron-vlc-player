@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+    />
+    <title>electron-vlc-player example</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        user-select: none;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        overflow: hidden;
+      }
+      body {
+        --vlc-ui-bg: #f0f0f0;
+        --vlc-ui-header: #f6f6f6;
+        --vlc-ui-panel-bg: #ffffff;
+        --vlc-border: #c8c8c8;
+        --vlc-border-light: #e5e5e5;
+        --vlc-text: #222222;
+        --vlc-text-muted: #666666;
+        --vlc-btn-bg: #f0f0f0;
+        --vlc-btn-bg-hover: #e3e3e3;
+        --vlc-btn-border: #adadad;
+        --vlc-btn-border-hover: #707070;
+        --vlc-selection-bg: #d6d6d6;
+        --vlc-selection-text: #111111;
+        --vlc-list-hover: #ececec;
+        --panel-gap: 5px;
+        --top-bar-height: 34px;
+        --sidebar-width: 260px;
+        --bottom-bar-height: 140px;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: var(--vlc-ui-bg);
+        color: var(--vlc-text);
+        display: grid;
+        grid-template-areas:
+          "top"
+          "workspace"
+          "bottom-gap"
+          "bottom";
+        grid-template-columns: 1fr;
+        grid-template-rows: var(--top-bar-height) minmax(0, 1fr) var(--panel-gap) var(--bottom-bar-height);
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      button {
+        cursor: default;
+        border: 1px solid var(--vlc-btn-border);
+        border-radius: 2px;
+        background: var(--vlc-btn-bg);
+        color: var(--vlc-text);
+        padding: 4px 12px;
+        min-height: 24px;
+        font-size: 12px;
+      }
+      button:hover {
+        background: var(--vlc-btn-bg-hover);
+        border-color: var(--vlc-btn-border-hover);
+      }
+      button:active {
+        background: #d8d8d8;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      input[type='text'] {
+        flex: 1;
+        min-width: 0;
+        padding: 3px 6px;
+        min-height: 24px;
+        border: 1px solid var(--vlc-border);
+        border-radius: 2px;
+        background: #ffffff;
+        color: var(--vlc-text);
+        outline: none;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+        font-size: 12px;
+      }
+      input[type='text']:focus {
+        outline: none;
+        border-color: #3399ff;
+        box-shadow: 0 0 0 1px rgba(51, 153, 255, 0.35);
+      }
+      .top-bar {
+        grid-area: top;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        height: var(--top-bar-height);
+        min-height: var(--top-bar-height);
+        max-height: var(--top-bar-height);
+        padding: 5px;
+        background: var(--vlc-ui-bg);
+        font-size: 12px;
+      }
+      .btn-with-icon {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+        padding: 3px 10px;
+      }
+      .btn-icon-only {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 26px;
+        min-width: 26px;
+        height: 24px;
+        padding: 2px;
+      }
+      .btn-icon {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+        display: block;
+        pointer-events: none;
+      }
+      .btn-icon-color {
+        width: 18px;
+        height: 18px;
+      }
+      .top-bar input[type='text'].path-input {
+        flex: 1 1 0;
+        min-width: 80px;
+        max-width: none;
+      }
+      .path-group {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .workspace {
+        grid-area: workspace;
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        background: var(--vlc-ui-bg);
+      }
+      .main-area {
+        flex: 1 1 auto;
+        position: relative;
+        min-width: 0;
+        min-height: 0;
+        background: #000;
+      }
+      .panel-gap {
+        flex-shrink: 0;
+        touch-action: none;
+        background: transparent;
+      }
+      .panel-gap-col {
+        width: var(--panel-gap);
+        cursor: col-resize;
+      }
+      .panel-gap-row {
+        grid-area: bottom-gap;
+        height: var(--panel-gap);
+        cursor: row-resize;
+      }
+      body.col-resizing {
+        cursor: col-resize;
+        user-select: none;
+      }
+      body.row-resizing {
+        cursor: row-resize;
+        user-select: none;
+      }
+      #stage {
+        width: 100%;
+        height: 100%;
+        background: #000;
+      }
+      .side-bar {
+        flex: 0 0 auto;
+        width: var(--sidebar-width);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        min-width: 0;
+        border: 1px solid var(--vlc-border);
+        background: var(--vlc-ui-bg);
+      }
+      .side-bar h2 {
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--vlc-text);
+        background: var(--vlc-ui-header);
+        border-bottom: 1px solid var(--vlc-border);
+      }
+      .playlist-columns {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 56px;
+        gap: 8px;
+        align-items: center;
+      }
+      .playlist-head {
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--vlc-text);
+        background: var(--vlc-ui-header);
+        border-bottom: 1px solid var(--vlc-border);
+      }
+      .playlist-head .col-duration {
+        text-align: right;
+      }
+      #playlist {
+        list-style: none;
+        flex: 1;
+        overflow-y: auto;
+        padding: 0;
+        background: var(--vlc-ui-panel-bg);
+      }
+      #playlist li {
+        padding: 4px 10px;
+        font-size: 12px;
+        line-height: 1.4;
+        cursor: default;
+        border-bottom: 1px solid var(--vlc-border-light);
+        color: var(--vlc-text);
+      }
+      #playlist .col-title {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #playlist .col-duration {
+        text-align: right;
+        color: var(--vlc-text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+      #playlist li.active .col-duration {
+        color: inherit;
+      }
+      #playlist li:hover {
+        background: var(--vlc-list-hover);
+      }
+      #playlist li.active {
+        background: var(--vlc-selection-bg);
+        color: var(--vlc-selection-text);
+      }
+      #playlist .empty {
+        padding: 12px 10px;
+        color: var(--vlc-text-muted);
+        cursor: default;
+        border-bottom: none;
+      }
+      #playlist .empty:hover {
+        background: transparent;
+      }
+      .sidebar-footer {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px;
+        border-top: 1px solid var(--vlc-border);
+        background: var(--vlc-ui-header);
+      }
+      .sidebar-footer .btn-with-icon {
+        flex: 1 1 0;
+        min-width: 0;
+        justify-content: center;
+        padding: 3px 6px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .sidebar-footer .btn-loop-mode {
+        flex: 1.2 1 0;
+      }
+      .sidebar-footer .btn-loop-mode .btn-icon {
+        width: 14px;
+        height: 14px;
+      }
+      .bottom-bar {
+        grid-area: bottom;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        height: var(--bottom-bar-height);
+        min-height: var(--bottom-bar-height);
+        max-height: var(--bottom-bar-height);
+        padding: 0;
+        border: 1px solid var(--vlc-border);
+        background: var(--vlc-ui-panel-bg);
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--vlc-text);
+        overflow: hidden;
+      }
+      .bottom-bar * {
+        user-select: text;
+      }
+      .bottom-bar .muted {
+        color: var(--vlc-text-muted);
+      }
+      .media-info-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+      #media-info-lines {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 8px 12px;
+      }
+      body.file-drag-over::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        border: 2px dashed #3399ff;
+        background: rgba(51, 153, 255, 0.08);
+        pointer-events: none;
+        z-index: 10000;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="top-bar" id="top-bar">
+      <button type="button" id="btn-open-video" class="btn-with-icon">
+        <img class="btn-icon" src="assets/open.svg" alt="" />
+        打开媒体
+      </button>
+      <div class="path-group">
+        <button
+          type="button"
+          id="btn-pick-vlc"
+          class="btn-icon-only"
+          title="选择 VLC 目录"
+        >
+          <img class="btn-icon btn-icon-color" src="assets/vlc.svg" alt="" />
+        </button>
+        <input
+          id="vlc-dir"
+          class="path-input"
+          type="text"
+          spellcheck="false"
+          placeholder="libVLC 根目录"
+        />
+      </div>
+      <div class="path-group">
+        <button
+          type="button"
+          id="btn-pick-ffmpeg"
+          class="btn-icon-only"
+          title="选择 FFmpeg 路径"
+        >
+          <img class="btn-icon btn-icon-color" src="assets/ffmpeg.svg" alt="" />
+        </button>
+        <input
+          id="ffmpeg-path"
+          class="path-input"
+          type="text"
+          spellcheck="false"
+          placeholder="FFmpeg 可执行文件（可选）"
+        />
+      </div>
+    </header>
+
+    <section class="workspace" id="workspace">
+      <main class="main-area">
+        <div id="stage"></div>
+      </main>
+      <div
+        id="sidebar-resizer"
+        class="panel-gap panel-gap-col"
+        role="separator"
+        aria-orientation="vertical"
+        aria-valuemin="160"
+        aria-valuemax="560"
+        aria-label="拖动调整播放列表宽度"
+      ></div>
+      <aside class="side-bar" id="sidebar">
+        <div class="playlist-head playlist-columns" aria-hidden="true">
+          <span class="col-title">标题</span>
+          <span class="col-duration">时长</span>
+        </div>
+        <ul id="playlist">
+          <li class="empty">暂无条目，请添加或打开媒体</li>
+        </ul>
+        <footer class="sidebar-footer">
+          <button type="button" id="btn-add-videos" class="btn-with-icon">
+            <img class="btn-icon" src="assets/add.svg" alt="" />
+            添加媒体
+          </button>
+          <button type="button" id="btn-clear-playlist" class="btn-with-icon">
+            <img class="btn-icon" src="assets/remove.svg" alt="" />
+            清空列表
+          </button>
+          <button
+            type="button"
+            id="btn-loop-mode"
+            class="btn-with-icon btn-loop-mode"
+            title="切换循环类型"
+          >
+            <img
+              id="loop-mode-icon"
+              class="btn-icon"
+              src="assets/off-loop.svg"
+              alt=""
+            />
+            <span id="loop-mode-label">不循环</span>
+          </button>
+        </footer>
+      </aside>
+    </section>
+
+    <div
+      id="bottom-bar-resizer"
+      class="panel-gap panel-gap-row"
+      role="separator"
+      aria-orientation="horizontal"
+      aria-valuemin="80"
+      aria-valuemax="480"
+      aria-label="拖动调整底栏高度"
+    ></div>
+    <footer class="bottom-bar" id="bottom-bar">
+      <div id="media-info-scroll" class="media-info-scroll">
+        <div id="media-info-lines">
+          <span class="muted">未加载媒体</span>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="renderer.js"></script>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.main.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "module": "ES2022",
+    "moduleResolution": "Bundler"
+  },
+  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.d.ts"]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "electron-vlc-player-example",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Example Electron app",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && node scripts/copy-renderer-html.cjs",
+    "postinstall": "node scripts/rebuild-module.cjs",
+    "link": "node scripts/link-local.cjs",
+    "unlink": "node scripts/unlink-local.cjs",
+    "rebuild": "node scripts/rebuild-module.cjs",
+    "start": "npm run build && node scripts/check-native.cjs && node scripts/run-electron.cjs",
+    "smoke-play": "node scripts/run-smoke-play.cjs"
+  },
+  "dependencies": {
+    "electron-vlc-player": "^0.1.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.1",
+    "electron": "^33.2.0",
+    "typescript": "^5.7.2"
+  }
+}
