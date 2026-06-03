@@ -23,9 +23,9 @@ jobs:
           - os: ubuntu-latest
             arch: x64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -40,7 +40,7 @@ jobs:
         run: npm run build:prebuild
 
       - name: Upload prebuild artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: prebuilds-${{ matrix.os }}-${{ matrix.arch }}
           path: prebuilds/
@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all prebuild artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
@@ -58,17 +58,28 @@ jobs:
       - name: Merge into prebuilds/
         run: |
           mkdir -p prebuilds
+          echo "Downloaded artifacts:"
           find artifacts -name '*.node' -print
-          for dir in artifacts/prebuilds-*; do
+
+          # download-artifact@v8 + merge-multiple → artifacts/<triple>/vlc_binding.node
+          while IFS= read -r node; do
+            triple="$(basename "$(dirname "$node")")"
+            mkdir -p "prebuilds/$triple"
+            cp "$node" "prebuilds/$triple/"
+          done < <(find artifacts -name '*.node' -type f)
+
+          # Legacy layout: artifacts/prebuilds-<runner>-<arch>/<triple>/
+          for dir in artifacts/prebuilds-*/; do
             [ -d "$dir" ] || continue
             cp -r "$dir"/* prebuilds/
           done
+
           echo "Merged prebuilds:"
           find prebuilds -name '*.node' -print
           test "$(find prebuilds -name '*.node' | wc -l)" -ge 1
 
       - name: Upload merged prebuilds
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: prebuilds-merged
           path: prebuilds/
@@ -78,10 +89,10 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download merged prebuilds
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: prebuilds-merged
           path: prebuilds
@@ -90,7 +101,7 @@ jobs:
         run: tar -czvf evp-prebuilds.tar.gz prebuilds
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: evp-prebuilds.tar.gz
         env:
@@ -104,15 +115,15 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
           registry-url: https://registry.npmjs.org
 
       - name: Download merged prebuilds
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: prebuilds-merged
           path: prebuilds
