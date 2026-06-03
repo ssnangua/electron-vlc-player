@@ -14,7 +14,9 @@ const PACKS = locales as ExampleUiLocalePack;
 
 export function getExampleUiStrings(locale: string) {
   const key = locale as ExampleLocale;
-  return PACKS[key] ?? PACKS.en;
+  const pack = PACKS[key];
+  if (!pack) return PACKS.en;
+  return { ...PACKS.en, ...pack };
 }
 
 export function buildLocaleView(locale?: string): LocaleView {

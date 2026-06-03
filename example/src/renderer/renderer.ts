@@ -343,30 +343,47 @@ playlistEl.addEventListener('click', async (event) => {
   }
 });
 
+function labelValue(label: string, value: string): string {
+  const text = label.replace(/[:：]\s*$/, '');
+  return `${text}：${value}`;
+}
+
 function renderMediaInfo(info: MediaInfoView | null | undefined): void {
   lastMediaInfo = info ?? null;
   if (!info?.path) {
     mediaInfoEl.innerHTML = `<span class="muted">${escapeHtml(ui.noMediaLoaded)}</span>`;
     return;
   }
+  const durationValue =
+    info.parseState === 'parsing'
+      ? ui.durationParsing
+      : info.parseState === 'failed'
+        ? ui.durationParseFailed
+        : info.durationText || '—';
   const lines = [
-    `${ui.labelTitle}${info.title || info.filename || basename(info.path)}`,
-    ...(info.artist ? [`${ui.labelArtist}${info.artist}`] : []),
-    ...(info.album ? [`${ui.labelAlbum}${info.album}`] : []),
-    ...(info.genre ? [`${ui.labelGenre}${info.genre}`] : []),
-    `${ui.labelPath}${info.path}`,
-    `${ui.labelDuration}${info.durationText || '—'}`,
-    `${ui.labelResolution}${info.resolution || '—'}`,
-    `${ui.labelFps}${info.fps != null && info.fps > 0 ? `${info.fps.toFixed(2)} fps` : '—'}`,
+    labelValue(ui.labelTitle, info.title || info.filename || basename(info.path)),
+    ...(info.artist ? [labelValue(ui.labelArtist, info.artist)] : []),
+    ...(info.album ? [labelValue(ui.labelAlbum, info.album)] : []),
+    ...(info.genre ? [labelValue(ui.labelGenre, info.genre)] : []),
+    labelValue(ui.labelPath, info.path),
+    labelValue(ui.labelDuration, durationValue),
+    labelValue(ui.labelResolution, info.resolution || '—'),
+    labelValue(
+      ui.labelFps,
+      info.fps != null && info.fps > 0 ? `${info.fps.toFixed(2)} fps` : '—',
+    ),
   ];
   if (info.streams?.length) {
     for (const s of info.streams) {
-      const head = `${s.type}（${s.codec || '—'}）`;
-      lines.push(s.details ? `${head}：${s.details}` : head);
+      const head = `${s.type} (${s.codec || '—'})`;
+      lines.push(s.details ? labelValue(head, s.details) : head);
     }
   }
-  if (info.notice) {
-    lines.push(`${ui.labelNotice}${info.notice}`);
+  if (info.queryHint) {
+    lines.push(labelValue(ui.labelNotice, info.queryHint));
+  }
+  if (info.hint) {
+    lines.push(labelValue(ui.labelNotice, info.hint));
   }
   mediaInfoEl.innerHTML = lines.map((t) => `<span>${escapeHtml(t)}</span>`).join('');
 }

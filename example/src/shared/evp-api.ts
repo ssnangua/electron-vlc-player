@@ -26,8 +26,14 @@ export interface MediaInfoView {
   resolution?: string;
   fps?: number;
   streams?: MediaStreamView[];
-  /** 库返回的简要说明（如尚未 parse、无法读取详细轨时的退回说明） */
-  notice?: string;
+  /** libVLC 媒体查询状态码 */
+  queryCode?: string;
+  /** 已本地化的 libVLC 查询说明（由 main 根据 `queryCode` 生成） */
+  queryHint?: string;
+  /** 应用内提示（如未配置 libVLC、libVLC 已加载） */
+  hint?: string;
+  /** 元数据解析中 / 失败 */
+  parseState?: "parsing" | "failed";
 }
 
 export interface ExampleUiStrings {
@@ -72,6 +78,26 @@ export interface ExampleUiStrings {
   filterPlaylist: string;
   filterAll: string;
   noticeSetupVlc: string;
+  queryPlayerNotReady: string;
+  queryMediaNotParsed: string;
+  queryMetadataUnavailable: string;
+  queryMediaOpening: string;
+  queryTracksSwitchableOnly: string;
+  queryTracksPartial: string;
+  queryStreamInfoUnavailable: string;
+  hintLibvlcLoaded: string;
+  durationParsing: string;
+  durationParseFailed: string;
+  streamVideo: string;
+  streamAudio: string;
+  streamSubtitle: string;
+  streamUnknown: string;
+  streamRow: string;
+  errorVlcDirEmpty: string;
+  errorInvalidFfmpegPath: string;
+  errorInvalidPlaybackMode: string;
+  errorPlayerNotReady: string;
+  errorVlcDirNotSet: string;
 }
 
 export interface LocaleOption {

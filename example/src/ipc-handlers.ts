@@ -3,6 +3,11 @@ import type { WebContents } from "electron";
 import { resolveVlcDir, getLibVlcVersion } from "electron-vlc-player";
 import type { PlaylistItem } from "./shared/evp-api";
 import { buildLocaleView, getExampleUiStrings } from "./shared/example-i18n";
+import {
+  formatErrorInvalidFfmpegPath,
+  formatErrorInvalidPlaybackMode,
+  formatHintLibvlcLoaded,
+} from "./shared/media-query-i18n";
 import { buildMediaFileFilters } from "./shared/media-filters";
 import { appState } from "./app-state";
 import { basename } from "./format";
@@ -246,8 +251,9 @@ export function registerIpc(): void {
   });
 
   ipcMain.handle("evp:set-vlc-dir", async (_event, dir: string) => {
+    const ui = getExampleUiStrings(appState.locale);
     const trimmed = dir?.trim();
-    if (!trimmed) throw new Error("VLC 路径不能为空");
+    if (!trimmed) throw new Error(ui.errorVlcDirEmpty);
     const resolved = resolveVlcDir(trimmed);
     appState.vlcDir = resolved;
     const wasPlaying = appState.currentPath;
@@ -260,7 +266,7 @@ export function registerIpc(): void {
         ? basename(appState.currentPath)
         : undefined,
       durationText: appState.currentPath ? "—" : undefined,
-      notice: `已加载 libVLC：${ver}`,
+      hint: formatHintLibvlcLoaded(ui, ver),
     });
     if (wasPlaying) {
       playPath(wasPlaying);
@@ -268,6 +274,7 @@ export function registerIpc(): void {
   });
 
   ipcMain.handle("evp:set-ffmpeg-path", async (_event, rawPath: string) => {
+    const ui = getExampleUiStrings(appState.locale);
     const trimmed = rawPath?.trim();
     if (!trimmed) {
       appState.ffmpegPath = "";
@@ -278,7 +285,7 @@ export function registerIpc(): void {
     }
     const resolved = resolveFfmpegExecutable(trimmed);
     if (!resolved) {
-      throw new Error(`无效的 FFmpeg 路径：${trimmed}`);
+      throw new Error(formatErrorInvalidFfmpegPath(ui, trimmed));
     }
     appState.ffmpegPath = resolved;
     if (appState.player?.isEmbedded()) {
@@ -353,8 +360,9 @@ export function registerIpc(): void {
   ipcMain.handle(
     "evp:set-playback-mode",
     async (_event, mode: "default" | "loop" | "repeat") => {
+      const ui = getExampleUiStrings(appState.locale);
       if (mode !== "default" && mode !== "loop" && mode !== "repeat") {
-        throw new Error(`无效的播放模式：${String(mode)}`);
+        throw new Error(formatErrorInvalidPlaybackMode(ui, String(mode)));
       }
       appState.playbackMode = mode;
       appState.player?.setPlaybackMode(mode);

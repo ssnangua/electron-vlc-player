@@ -2,6 +2,7 @@ import path from "node:path";
 import { BrowserWindow } from "electron";
 import { APP_TITLE, appState } from "./app-state";
 import { getExampleUiStrings } from "./shared/example-i18n";
+import { formatHintLibvlcLoaded } from "./shared/media-query-i18n";
 import { registerIpc } from "./ipc-handlers";
 import { pushMediaInfo } from "./media-info";
 import {
@@ -39,7 +40,7 @@ export function createWindow(): void {
       if (!appState.vlcDir.trim()) {
         pushMediaInfo({
           path: null,
-          notice: getExampleUiStrings(appState.locale).noticeSetupVlc,
+          hint: getExampleUiStrings(appState.locale).noticeSetupVlc,
         });
         appState.mainWindow?.show();
         return;
@@ -50,7 +51,7 @@ export function createWindow(): void {
         console.error("[example] player init failed:", err);
         pushMediaInfo({
           path: null,
-          notice: err instanceof Error ? err.message : String(err),
+          hint: err instanceof Error ? err.message : String(err),
         });
       }
       appState.mainWindow?.show();

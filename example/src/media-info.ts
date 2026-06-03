@@ -1,6 +1,11 @@
 import type { MediaParsedResult, MediaStreamInfo } from "electron-vlc-player";
 import type { MediaInfoView, MediaStreamView } from "./shared/evp-api";
 import { appState } from "./app-state";
+import { getExampleUiStrings } from "./shared/example-i18n";
+import {
+  formatStreamRow,
+  mediaQueryHint,
+} from "./shared/media-query-i18n";
 import { basename, durationTextFromLengthMs } from "./format";
 import {
   isPlayerReady,
@@ -9,20 +14,23 @@ import {
 } from "./player-session";
 import { updatePlaylistDuration } from "./playlist-service";
 
-function streamLabel(type: MediaStreamInfo["type"]): string {
+function streamLabel(type: MediaStreamInfo["type"], ui: ReturnType<typeof getExampleUiStrings>): string {
   switch (type) {
     case "video":
-      return "视频";
+      return ui.streamVideo;
     case "audio":
-      return "音频";
+      return ui.streamAudio;
     case "subtitle":
-      return "字幕";
+      return ui.streamSubtitle;
     default:
-      return "未知";
+      return ui.streamUnknown;
   }
 }
 
-function streamViewsFromTracks(tracks: MediaStreamInfo[]): MediaStreamView[] {
+function streamViewsFromTracks(
+  tracks: MediaStreamInfo[],
+  ui: ReturnType<typeof getExampleUiStrings>,
+): MediaStreamView[] {
   const real = tracks.filter((t) => t.id >= 0);
   return real.map((stream, index) => {
     const parts: string[] = [];
@@ -39,8 +47,8 @@ function streamViewsFromTracks(tracks: MediaStreamInfo[]): MediaStreamView[] {
       if (stream.channels) parts.push(`${stream.channels} ch`);
     }
     return {
-      type: `流 ${index}`,
-      codec: streamLabel(stream.type),
+      type: formatStreamRow(ui, index),
+      codec: streamLabel(stream.type, ui),
       language: stream.language,
       description: stream.description,
       details: parts.length ? parts.join(" · ") : undefined,
@@ -77,7 +85,7 @@ export function mediaDisplayTitle(filePath: string): string {
       .data.title?.trim();
     if (metaTitle) return metaTitle;
   } catch {
-    // 尚未加载媒体或 metadata 不可读
+    // metadata not readable yet
   }
   return filename;
 }
@@ -86,6 +94,7 @@ export function buildMediaInfoView(
   filePath: string | null,
   parsed?: MediaParsedResult,
 ): MediaInfoView {
+  const ui = getExampleUiStrings(appState.locale);
   if (!filePath || !isPlayerReady()) {
     return { path: null };
   }
@@ -95,7 +104,7 @@ export function buildMediaInfoView(
       path: filePath,
       title: filename,
       filename,
-      durationText: "解析中…",
+      parseState: "parsing",
     };
   }
 
@@ -126,6 +135,7 @@ export function buildMediaInfoView(
   }
 
   const lengthMs = parsed.length > 0 ? parsed.length : p.getLength();
+  const tracksCode = parsed.tracksCode;
   return {
     path: filePath,
     title: displayTitle,
@@ -137,13 +147,13 @@ export function buildMediaInfoView(
     resolution: resolution ?? "—",
     fps,
     streams: parsed.tracks.length
-      ? streamViewsFromTracks(parsed.tracks)
+      ? streamViewsFromTracks(parsed.tracks, ui)
       : undefined,
-    notice: parsed.tracksNotice,
+    queryCode: tracksCode,
+    queryHint: mediaQueryHint(tracksCode, ui),
   };
 }
 
-/** 解码出画面后刷新分辨率/帧率（getVideoSize 在首帧前可能为 0） */
 function scheduleLiveDisplayMetricsRefresh(filePath: string): void {
   const delays = [400, 1200, 2500];
   for (const ms of delays) {
@@ -175,13 +185,12 @@ function scheduleLiveDisplayMetricsRefresh(filePath: string): void {
 
 export function pushMediaInfo(view?: MediaInfoView): void {
   const info = view ?? buildMediaInfoView(appState.currentPath);
-  if (info.path && info.durationText !== "解析中…") {
+  if (info.path && info.parseState !== "parsing") {
     appState.cachedMediaInfo = info;
   }
   appState.mainWindow?.webContents.send("evp:media-info", info);
 }
 
-/** 等进入播放（或已暂停）后再 parse，避免 Opening 黑屏阶段读轨导致 native 崩溃 */
 export function scheduleMediaParse(filePath: string): void {
   const { player } = appState;
   if (!player) return;
@@ -216,7 +225,7 @@ export function scheduleMediaParse(filePath: string): void {
           path: filePath,
           title: basename(filePath),
           filename: basename(filePath),
-          durationText: "解析失败",
+          parseState: "failed",
         });
       });
   };

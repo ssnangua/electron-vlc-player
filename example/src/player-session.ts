@@ -5,6 +5,7 @@ import {
 } from "electron-vlc-player";
 import type { VlcPlaylistItemChangedPayload } from "electron-vlc-player";
 import { APP_TITLE, appState } from "./app-state";
+import { getExampleUiStrings } from "./shared/example-i18n";
 import {
   buildMediaInfoView,
   mediaDisplayTitle,
@@ -25,7 +26,7 @@ export function isPlayerReady(): boolean {
 export function requirePlayer(): VlcPlayer {
   const p = appState.player;
   if (!p?.isEmbedded()) {
-    throw new Error("播放器尚未就绪，请稍候或检查 libVLC 目录");
+    throw new Error(getExampleUiStrings(appState.locale).errorPlayerNotReady);
   }
   return p;
 }
@@ -55,7 +56,7 @@ export async function createAndEmbedPlayer(): Promise<void> {
   if (!appState.mainWindow) return;
   const trimmed = appState.vlcDir.trim();
   if (!trimmed) {
-    throw new Error("未设置 VLC 路径，请在顶栏选择 libVLC 目录");
+    throw new Error(getExampleUiStrings(appState.locale).errorVlcDirNotSet);
   }
   if (!appState.playerReady) {
     appState.playerReady = (async () => {
