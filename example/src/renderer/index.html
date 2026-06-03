@@ -147,6 +147,45 @@
         flex: 1 1 0;
         min-width: 0;
       }
+      .top-bar-locale-wrap {
+        margin-left: auto;
+        flex-shrink: 0;
+      }
+      .locale-menu-wrap {
+        position: relative;
+      }
+      .locale-popup {
+        position: absolute;
+        top: calc(100% + 4px);
+        right: 0;
+        z-index: 1000;
+        min-width: 148px;
+        padding: 4px 0;
+        border: 1px solid var(--vlc-border);
+        border-radius: 2px;
+        background: #ffffff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+      }
+      .locale-popup[hidden] {
+        display: none;
+      }
+      .locale-popup button {
+        display: block;
+        width: 100%;
+        border: none;
+        background: transparent;
+        text-align: left;
+        padding: 4px 12px;
+        border-radius: 0;
+        min-height: 26px;
+      }
+      .locale-popup button:hover {
+        background: var(--vlc-list-hover);
+        border-color: transparent;
+      }
+      .locale-popup button.active {
+        font-weight: 600;
+      }
       .workspace {
         grid-area: workspace;
         display: flex;
@@ -343,7 +382,7 @@
     <header class="top-bar" id="top-bar">
       <button type="button" id="btn-open-video" class="btn-with-icon">
         <img class="btn-icon" src="assets/open.svg" alt="" />
-        打开媒体
+        <span id="label-open-media">打开媒体</span>
       </button>
       <div class="path-group">
         <button
@@ -379,6 +418,21 @@
           placeholder="FFmpeg 可执行文件（可选）"
         />
       </div>
+      <div class="top-bar-locale-wrap">
+        <div class="locale-menu-wrap" id="locale-menu-wrap">
+          <button
+            type="button"
+            id="btn-locale"
+            class="btn-icon-only"
+            title="切换语言"
+            aria-haspopup="menu"
+            aria-expanded="false"
+          >
+            <img class="btn-icon btn-icon-color" src="assets/locale.svg" alt="" />
+          </button>
+          <div id="locale-menu" class="locale-popup" hidden role="menu"></div>
+        </div>
+      </div>
     </header>
 
     <section class="workspace" id="workspace">
@@ -396,8 +450,8 @@
       ></div>
       <aside class="side-bar" id="sidebar">
         <div class="playlist-head playlist-columns" aria-hidden="true">
-          <span class="col-title">标题</span>
-          <span class="col-duration">时长</span>
+          <span class="col-title" id="label-playlist-title">标题</span>
+          <span class="col-duration" id="label-playlist-duration">时长</span>
         </div>
         <ul id="playlist">
           <li class="empty">暂无条目，请添加或打开媒体</li>
@@ -405,11 +459,11 @@
         <footer class="sidebar-footer">
           <button type="button" id="btn-add-videos" class="btn-with-icon">
             <img class="btn-icon" src="assets/add.svg" alt="" />
-            添加媒体
+            <span id="label-add-media">添加媒体</span>
           </button>
           <button type="button" id="btn-clear-playlist" class="btn-with-icon">
             <img class="btn-icon" src="assets/remove.svg" alt="" />
-            清空列表
+            <span id="label-clear-playlist">清空列表</span>
           </button>
           <button
             type="button"

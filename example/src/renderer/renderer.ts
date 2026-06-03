@@ -1,8 +1,16 @@
-import type { MediaInfoView, PlaylistItem, StoredPlaylist } from '../shared/evp-api';
+import type {
+  ExampleUiStrings,
+  LocaleOption,
+  LocaleView,
+  MediaInfoView,
+  PlaylistItem,
+  StoredPlaylist,
+} from '../shared/evp-api';
 
 const SIDEBAR_WIDTH_KEY = 'evp-example-sidebar-width';
 const BOTTOM_BAR_HEIGHT_KEY = 'evp-example-bottom-bar-height';
 const PLAYLIST_STORAGE_KEY = 'evp-example-playlist';
+const LOCALE_KEY = 'evp-example-locale';
 const SIDEBAR_DEFAULT = 260;
 const SIDEBAR_MIN = 160;
 const SIDEBAR_MAX = 560;
@@ -48,14 +56,32 @@ const btnClearPlaylist = requireElement<HTMLButtonElement>('btn-clear-playlist')
 const btnLoopMode = requireElement<HTMLButtonElement>('btn-loop-mode');
 const loopModeIcon = requireElement<HTMLImageElement>('loop-mode-icon');
 const loopModeLabel = requireElement<HTMLSpanElement>('loop-mode-label');
+const labelOpenMedia = requireElement<HTMLSpanElement>('label-open-media');
+const labelPlaylistTitle = requireElement<HTMLSpanElement>('label-playlist-title');
+const labelPlaylistDuration = requireElement<HTMLSpanElement>('label-playlist-duration');
+const labelAddMedia = requireElement<HTMLSpanElement>('label-add-media');
+const labelClearPlaylist = requireElement<HTMLSpanElement>('label-clear-playlist');
+const btnLocale = requireElement<HTMLButtonElement>('btn-locale');
+const localeMenuWrap = requireElement<HTMLElement>('locale-menu-wrap');
+const localeMenu = requireElement<HTMLDivElement>('locale-menu');
 const playlistEl = requireElement<HTMLUListElement>('playlist');
 const mediaInfoEl = requireElement<HTMLDivElement>('media-info-lines');
 
-const LOOP_MODES = [
-  { mode: 'default' as const, icon: 'assets/off-loop.svg', label: '不循环' },
-  { mode: 'loop' as const, icon: 'assets/loop.svg', label: '列表循环' },
-  { mode: 'repeat' as const, icon: 'assets/repeat.svg', label: '单文件循环' },
-];
+type LoopMode = 'default' | 'loop' | 'repeat';
+
+let currentLocale = 'en';
+let ui: ExampleUiStrings = { openMedia: '' } as ExampleUiStrings;
+let localeOptions: LocaleOption[] = [];
+let lastPlaylist: PlaylistItem[] = [];
+let lastMediaInfo: MediaInfoView | null = null;
+
+function loopModeEntries(): { mode: LoopMode; icon: string; label: string }[] {
+  return [
+    { mode: 'default', icon: 'assets/off-loop.svg', label: ui.loopDefault },
+    { mode: 'loop', icon: 'assets/loop.svg', label: ui.loopList },
+    { mode: 'repeat', icon: 'assets/repeat.svg', label: ui.loopRepeat },
+  ];
+}
 
 let loopModeIndex = 0;
 
@@ -260,11 +286,12 @@ function savePlaylistToStorage(playlist: PlaylistItem[], currentPath: string | n
 }
 
 function renderPlaylist(items: PlaylistItem[], activePath: string | null): void {
+  lastPlaylist = items;
   playlistEl.innerHTML = '';
   if (!items.length) {
     const li = document.createElement('li');
     li.className = 'empty';
-    li.textContent = '暂无条目，请添加或打开媒体';
+    li.textContent = ui.playlistEmpty;
     playlistEl.appendChild(li);
     return;
   }
@@ -312,24 +339,25 @@ playlistEl.addEventListener('click', async (event) => {
   try {
     await window.evp.playPath(path);
   } catch (err) {
-    alert(`播放失败：${formatError(err)}`);
+    alert(`${ui.playFailedPrefix}${formatError(err)}`);
   }
 });
 
 function renderMediaInfo(info: MediaInfoView | null | undefined): void {
+  lastMediaInfo = info ?? null;
   if (!info?.path) {
-    mediaInfoEl.innerHTML = '<span class="muted">未加载媒体</span>';
+    mediaInfoEl.innerHTML = `<span class="muted">${escapeHtml(ui.noMediaLoaded)}</span>`;
     return;
   }
   const lines = [
-    `标题：${info.title || info.filename || basename(info.path)}`,
-    ...(info.artist ? [`艺术家：${info.artist}`] : []),
-    ...(info.album ? [`专辑：${info.album}`] : []),
-    ...(info.genre ? [`流派：${info.genre}`] : []),
-    `路径：${info.path}`,
-    `时长：${info.durationText || '—'}`,
-    `分辨率：${info.resolution || '—'}`,
-    `帧率：${info.fps != null && info.fps > 0 ? `${info.fps.toFixed(2)} fps` : '—'}`,
+    `${ui.labelTitle}${info.title || info.filename || basename(info.path)}`,
+    ...(info.artist ? [`${ui.labelArtist}${info.artist}`] : []),
+    ...(info.album ? [`${ui.labelAlbum}${info.album}`] : []),
+    ...(info.genre ? [`${ui.labelGenre}${info.genre}`] : []),
+    `${ui.labelPath}${info.path}`,
+    `${ui.labelDuration}${info.durationText || '—'}`,
+    `${ui.labelResolution}${info.resolution || '—'}`,
+    `${ui.labelFps}${info.fps != null && info.fps > 0 ? `${info.fps.toFixed(2)} fps` : '—'}`,
   ];
   if (info.streams?.length) {
     for (const s of info.streams) {
@@ -338,7 +366,7 @@ function renderMediaInfo(info: MediaInfoView | null | undefined): void {
     }
   }
   if (info.notice) {
-    lines.push(`提示：${info.notice}`);
+    lines.push(`${ui.labelNotice}${info.notice}`);
   }
   mediaInfoEl.innerHTML = lines.map((t) => `<span>${escapeHtml(t)}</span>`).join('');
 }
@@ -362,19 +390,88 @@ async function applyFfmpegPath(filePath: string): Promise<void> {
   await window.evp.setFfmpegPath(filePath);
 }
 
-function applyLoopModeUi(mode: (typeof LOOP_MODES)[number]['mode']): void {
-  const index = LOOP_MODES.findIndex((entry) => entry.mode === mode);
+function applyLoopModeUi(mode: LoopMode): void {
+  const modes = loopModeEntries();
+  const index = modes.findIndex((entry) => entry.mode === mode);
   loopModeIndex = index >= 0 ? index : 0;
-  const entry = LOOP_MODES[loopModeIndex];
+  const entry = modes[loopModeIndex];
   loopModeIcon.src = entry.icon;
   loopModeLabel.textContent = entry.label;
-  btnLoopMode.title = entry.label;
+  btnLoopMode.title = ui.loopModeTitle;
 }
 
-async function applyLoopMode(mode: (typeof LOOP_MODES)[number]['mode']): Promise<void> {
+async function applyLoopMode(mode: LoopMode): Promise<void> {
   applyLoopModeUi(mode);
   await window.evp.setPlaybackMode(mode);
 }
+
+function setLocaleMenuOpen(open: boolean): void {
+  localeMenu.hidden = !open;
+  btnLocale.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function renderLocaleMenu(): void {
+  localeMenu.innerHTML = '';
+  for (const option of localeOptions) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.role = 'menuitem';
+    item.textContent = option.label;
+    if (option.id === currentLocale) {
+      item.classList.add('active');
+    }
+    item.addEventListener('click', () => {
+      void switchLocale(option.id);
+      setLocaleMenuOpen(false);
+    });
+    localeMenu.appendChild(item);
+  }
+}
+
+function applyLocaleView(view: LocaleView): void {
+  currentLocale = view.locale;
+  ui = view.ui;
+  localeOptions = view.localeOptions;
+  applyUiStrings();
+}
+
+function applyUiStrings(): void {
+  document.documentElement.lang = currentLocale;
+  labelOpenMedia.textContent = ui.openMedia;
+  btnPickVlc.title = ui.pickVlcDirTitle;
+  vlcDirInput.placeholder = ui.vlcDirPlaceholder;
+  btnPickFfmpeg.title = ui.pickFfmpegTitle;
+  ffmpegPathInput.placeholder = ui.ffmpegPlaceholder;
+  btnLocale.title = ui.switchLocale;
+  labelPlaylistTitle.textContent = ui.playlistTitle;
+  labelPlaylistDuration.textContent = ui.playlistDuration;
+  labelAddMedia.textContent = ui.addMedia;
+  labelClearPlaylist.textContent = ui.clearPlaylist;
+  sidebarResizer.setAttribute('aria-label', ui.sidebarResizeLabel);
+  bottomBarResizer.setAttribute('aria-label', ui.bottomBarResizeLabel);
+  const modes = loopModeEntries();
+  applyLoopModeUi(modes[loopModeIndex]?.mode ?? 'default');
+  renderLocaleMenu();
+  renderPlaylist(lastPlaylist, currentPath);
+  renderMediaInfo(lastMediaInfo);
+}
+
+async function switchLocale(locale: string): Promise<void> {
+  applyLocaleView(await window.evp.setLocale(locale));
+  localStorage.setItem(LOCALE_KEY, currentLocale);
+}
+
+btnLocale.addEventListener('click', (event) => {
+  event.stopPropagation();
+  setLocaleMenuOpen(localeMenu.hidden);
+});
+
+document.addEventListener('click', (event) => {
+  if (!(event.target instanceof Node)) return;
+  if (!localeMenuWrap.contains(event.target)) {
+    setLocaleMenuOpen(false);
+  }
+});
 
 btnPickVlc.addEventListener('click', async () => {
   const dir = await window.evp.pickVlcDir();
@@ -417,7 +514,7 @@ btnOpenVideo.addEventListener('click', async () => {
   try {
     await window.evp.pickOpenVideo();
   } catch (err) {
-    alert(`打开媒体失败：${formatError(err)}`);
+    alert(`${ui.openMediaFailedPrefix}${formatError(err)}`);
   }
 });
 
@@ -434,12 +531,18 @@ btnClearPlaylist.addEventListener('click', async () => {
 });
 
 btnLoopMode.addEventListener('click', async () => {
-  loopModeIndex = (loopModeIndex + 1) % LOOP_MODES.length;
+  const modes = loopModeEntries();
+  loopModeIndex = (loopModeIndex + 1) % modes.length;
   try {
-    await applyLoopMode(LOOP_MODES[loopModeIndex].mode);
+    await applyLoopMode(modes[loopModeIndex].mode);
   } catch (err) {
     alert(formatError(err));
   }
+});
+
+window.evp.onLocaleChanged((view) => {
+  applyLocaleView(view);
+  localStorage.setItem(LOCALE_KEY, view.locale);
 });
 
 window.evp.onPlaylist((data) => {
@@ -455,9 +558,24 @@ window.evp.onMediaInfo((info) => {
 void window.evp.getState().then(async (state) => {
   vlcDirInput.value = state.vlcDir || '';
   ffmpegPathInput.value = state.ffmpegPath || '';
-  applyLoopModeUi(state.playbackMode || 'default');
   currentPath = state.currentPath;
-  renderMediaInfo(state.mediaInfo);
+  lastMediaInfo = state.mediaInfo;
+
+  const storedLocale = localStorage.getItem(LOCALE_KEY);
+  if (storedLocale && storedLocale !== state.locale) {
+    applyLocaleView(await window.evp.setLocale(storedLocale));
+  } else {
+    applyLocaleView({
+      locale: state.locale,
+      ui: state.ui,
+      localeOptions: state.localeOptions,
+    });
+  }
+  const modeIndex = loopModeEntries().findIndex(
+    (entry) => entry.mode === (state.playbackMode || 'default'),
+  );
+  loopModeIndex = modeIndex >= 0 ? modeIndex : 0;
+  applyUiStrings();
 
   const stored = loadPlaylistFromStorage();
   if (stored && stored.playlist.length > 0) {

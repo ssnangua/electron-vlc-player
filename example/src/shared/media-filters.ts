@@ -173,11 +173,15 @@ export function isSupportedMediaPath(filePath: string): boolean {
   return MEDIA_EXTENSION_SET.has(filePath.slice(dot + 1).toLowerCase());
 }
 
+import type { ExampleUiStrings } from "./evp-api";
+
 /** 「打开/添加媒体」对话框的文件类型过滤器（默认「媒体文件」）。 */
-export const MEDIA_FILE_FILTERS: FileFilter[] = [
-  { name: "媒体文件", extensions: [...MEDIA_EXTENSIONS] },
-  { name: "视频文件", extensions: [...VIDEO_EXTENSIONS] },
-  { name: "音频文件", extensions: [...AUDIO_EXTENSIONS] },
-  { name: "播放列表文件", extensions: [...PLAYLIST_EXTENSIONS] },
-  { name: "所有文件", extensions: ["*"] },
-];
+export function buildMediaFileFilters(ui: ExampleUiStrings): FileFilter[] {
+  return [
+    { name: ui.filterMedia, extensions: [...MEDIA_EXTENSIONS] },
+    { name: ui.filterVideo, extensions: [...VIDEO_EXTENSIONS] },
+    { name: ui.filterAudio, extensions: [...AUDIO_EXTENSIONS] },
+    { name: ui.filterPlaylist, extensions: [...PLAYLIST_EXTENSIONS] },
+    { name: ui.filterAll, extensions: ["*"] },
+  ];
+}

@@ -1,6 +1,7 @@
 import path from "node:path";
 import { BrowserWindow } from "electron";
 import { APP_TITLE, appState } from "./app-state";
+import { getExampleUiStrings } from "./shared/example-i18n";
 import { registerIpc } from "./ipc-handlers";
 import { pushMediaInfo } from "./media-info";
 import {
@@ -38,8 +39,7 @@ export function createWindow(): void {
       if (!appState.vlcDir.trim()) {
         pushMediaInfo({
           path: null,
-          notice:
-            "请先在顶栏设置 libVLC 目录（例如 C:\\Program Files\\VideoLAN\\VLC），再打开媒体",
+          notice: getExampleUiStrings(appState.locale).noticeSetupVlc,
         });
         appState.mainWindow?.show();
         return;

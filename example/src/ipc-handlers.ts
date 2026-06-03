@@ -2,7 +2,8 @@ import { BrowserWindow, dialog, ipcMain, Menu } from "electron";
 import type { WebContents } from "electron";
 import { resolveVlcDir, getLibVlcVersion } from "electron-vlc-player";
 import type { PlaylistItem } from "./shared/evp-api";
-import { MEDIA_FILE_FILTERS } from "./shared/media-filters";
+import { buildLocaleView, getExampleUiStrings } from "./shared/example-i18n";
+import { buildMediaFileFilters } from "./shared/media-filters";
 import { appState } from "./app-state";
 import { basename } from "./format";
 import {
@@ -70,27 +71,34 @@ function clearFileDragOver(): void {
 }
 
 export function registerIpc(): void {
-  ipcMain.handle("evp:get-state", () => ({
+  ipcMain.handle("evp:get-state", () => {
+    const localeView = buildLocaleView(appState.locale);
+    return {
     vlcDir: appState.vlcDir,
     ffmpegPath: appState.ffmpegPath,
     playbackMode: appState.playbackMode,
     playlist: appState.playlist,
     currentPath: appState.currentPath,
+    locale: localeView.locale,
+    ui: localeView.ui,
+    localeOptions: localeView.localeOptions,
     mediaInfo:
       appState.currentPath &&
       appState.cachedMediaInfo.path === appState.currentPath
         ? appState.cachedMediaInfo
         : buildMediaInfoView(appState.currentPath),
-  }));
+  };
+  });
 
   ipcMain.handle("evp:pick-vlc-dir", async () => {
     const win = appState.mainWindow;
     if (!win) return null;
+    const ui = getExampleUiStrings(appState.locale);
     const p = appState.player;
     if (p?.isEmbedded()) p.hideOverlay();
     try {
       const result = await dialog.showOpenDialog(win, {
-        title: "选择 VLC 目录",
+        title: ui.pickVlcDirTitle,
         properties: ["openDirectory"],
         defaultPath: appState.vlcDir,
       });
@@ -103,16 +111,17 @@ export function registerIpc(): void {
   ipcMain.handle("evp:pick-ffmpeg-path", async () => {
     const win = appState.mainWindow;
     if (!win) return null;
+    const ui = getExampleUiStrings(appState.locale);
     const p = appState.player;
     if (p?.isEmbedded()) p.hideOverlay();
     try {
       const result = await dialog.showOpenDialog(win, {
-        title: "选择 FFmpeg 可执行文件",
+        title: ui.pickFfmpegDialogTitle,
         properties: ["openFile"],
         defaultPath: appState.ffmpegPath || undefined,
         filters: [
-          { name: "可执行文件", extensions: ["exe", "bin", "*"] },
-          { name: "全部", extensions: ["*"] },
+          { name: ui.pickFfmpegFilterExec, extensions: ["exe", "bin", "*"] },
+          { name: ui.pickFfmpegFilterAll, extensions: ["*"] },
         ],
       });
       return result.canceled || !result.filePaths[0] ? null : result.filePaths[0];
@@ -124,13 +133,14 @@ export function registerIpc(): void {
   ipcMain.handle("evp:pick-open-video", async () => {
     const win = appState.mainWindow;
     if (!win) return;
+    const ui = getExampleUiStrings(appState.locale);
     const p = appState.player;
     if (p?.isEmbedded()) p.hideOverlay();
     try {
       const result = await dialog.showOpenDialog(win, {
-        title: "打开媒体",
+        title: ui.pickOpenVideoTitle,
         properties: ["openFile"],
-        filters: MEDIA_FILE_FILTERS,
+        filters: buildMediaFileFilters(ui),
       });
       if (!result.canceled && result.filePaths[0]) {
         await createAndEmbedPlayer();
@@ -144,13 +154,14 @@ export function registerIpc(): void {
   ipcMain.handle("evp:pick-add-videos", async () => {
     const win = appState.mainWindow;
     if (!win) return;
+    const ui = getExampleUiStrings(appState.locale);
     const p = appState.player;
     if (p?.isEmbedded()) p.hideOverlay();
     try {
       const result = await dialog.showOpenDialog(win, {
-        title: "添加媒体到播放列表",
+        title: ui.pickAddVideosTitle,
         properties: ["openFile", "multiSelections"],
-        filters: MEDIA_FILE_FILTERS,
+        filters: buildMediaFileFilters(ui),
       });
       if (!result.canceled && result.filePaths.length) {
         addToPlaylist(result.filePaths);
@@ -311,7 +322,7 @@ export function registerIpc(): void {
 
         const menu = Menu.buildFromTemplate([
           {
-            label: "移除",
+            label: getExampleUiStrings(appState.locale).removePlaylistItem,
             click: () => {
               void (async () => {
                 const wasCurrent = removeFromPlaylist(filePath);
@@ -349,6 +360,16 @@ export function registerIpc(): void {
       appState.player?.setPlaybackMode(mode);
     },
   );
+
+  ipcMain.handle("evp:set-locale", async (_event, locale: string) => {
+    const view = buildLocaleView(locale);
+    appState.locale = view.locale as typeof appState.locale;
+    if (appState.player?.isEmbedded()) {
+      appState.player.setLocale(view.locale);
+    }
+    appState.mainWindow?.webContents.send("evp:locale-changed", view);
+    return view;
+  });
 }
 
 export { isAppWebContents };

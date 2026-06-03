@@ -69,6 +69,7 @@ export async function createAndEmbedPlayer(): Promise<void> {
         vlcDir: resolved,
         controls: true,
         playbackMode: appState.playbackMode,
+        locale: appState.locale,
         ...(ffmpegPath ? { ffmpegPath } : {}),
       });
       if (ffmpegPath) {

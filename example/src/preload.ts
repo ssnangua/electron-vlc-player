@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
-import type { EvpBridge, EvpLayoutBridge, MediaInfoView, PlaylistItem, StoredPlaylist } from './shared/evp-api';
+import type { EvpBridge, EvpLayoutBridge, LocaleView, MediaInfoView, PlaylistItem, StoredPlaylist } from './shared/evp-api';
 
 function pathsFromDataTransfer(dataTransfer: DataTransfer): string[] {
   const paths: string[] = [];
@@ -93,6 +93,7 @@ contextBridge.exposeInMainWorld('evp', {
     ipcRenderer.invoke('evp:playlist-item-menu', filePath, x, y),
   setPlaybackMode: (mode: 'default' | 'loop' | 'repeat') =>
     ipcRenderer.invoke('evp:set-playback-mode', mode),
+  setLocale: (locale: string) => ipcRenderer.invoke('evp:set-locale', locale),
   restorePlaylist: (data: StoredPlaylist) => ipcRenderer.invoke('evp:restore-playlist', data),
   addMediaPaths: (filePaths: string[]) => ipcRenderer.invoke('evp:add-media-paths', filePaths),
   onPlaylist: (callback: (data: { playlist: PlaylistItem[]; currentPath: string | null }) => void) => {
@@ -100,5 +101,8 @@ contextBridge.exposeInMainWorld('evp', {
   },
   onMediaInfo: (callback: (info: MediaInfoView) => void) => {
     ipcRenderer.on('evp:media-info', (_event, info) => callback(info));
+  },
+  onLocaleChanged: (callback: (view: LocaleView) => void) => {
+    ipcRenderer.on('evp:locale-changed', (_event, view) => callback(view));
   },
 } satisfies EvpBridge);
