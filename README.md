@@ -271,6 +271,29 @@ setHardwareAcceleration("any");
 const player2 = new VlcPlayer({ window: win, container: "#player", vlcDir });
 ```
 
+### Localization (control bar UI)
+
+Built-in control bar, track menus, subtitle dialogs, and related overlay strings support multiple locales.
+
+- Constructor option **`locale`** (optional, BCP 47, e.g. `zh-CN`, `en`, `ja`): when omitted, follows Electron / system locale; falls back to English if no built-in pack matches.
+- **`SUPPORTED_PLAYER_LOCALES`**: list of supported locale ids.
+- Runtime **`getLocale()`** / **`setLocale(locale)`**: switch control bar language (updates the overlay).
+
+```ts
+import { VlcPlayer, SUPPORTED_PLAYER_LOCALES } from "electron-vlc-player";
+
+console.log(SUPPORTED_PLAYER_LOCALES); // ['en', 'zh-CN', 'zh-TW', 'ja', ...]
+
+const player = new VlcPlayer({
+  window: win,
+  container: "#player",
+  vlcDir,
+  locale: "zh-CN",
+});
+
+player.setLocale("ja");
+```
+
 ### Seek-bar hover preview
 
 The control bar can offline-generate hover preview sprites for **local files** (similar to streaming sites). **Network URLs / streams** cannot generate or show hover previews.
@@ -352,7 +375,6 @@ The built-in control bar can show **Previous** / **Next** beside the play button
 - `playPrevious()` / `playNext()` switch within the list; `hasPrevious()` / `hasNext()` indicate availability.
 - Default `autoAdvancePlaylist: true`: on `endReached`, plays the next item if any (`playNext()`).
 - **`playbackMode`** (default `default`): end-of-item behavior — `loop` (list), `repeat` (single item); use `getPlaybackMode()` / `setPlaybackMode()`.
-- **`locale`** (optional): control bar UI language (BCP 47, e.g. `zh-CN`, `en`, `ja`). Omitted: auto from Electron/system; falls back to English. See `SUPPORTED_PLAYER_LOCALES`; runtime `setLocale()` / `getLocale()`.
 - Switching via control bar or API emits `playlistItemChanged` (`{ src, index }`) for title/sidebar updates; **the player already called `setSource` — listeners need not call it again**.
 
 ```ts

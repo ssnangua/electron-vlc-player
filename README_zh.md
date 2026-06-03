@@ -271,6 +271,29 @@ setHardwareAcceleration("any");
 const player2 = new VlcPlayer({ window: win, container: "#player", vlcDir });
 ```
 
+### 多语言（控制条 UI）
+
+内置控制条、轨菜单、字幕对话框等 UI 文案支持多语言。
+
+- 构造选项 **`locale`**（可选，BCP 47，如 `zh-CN`、`en`、`ja`）：省略时按 Electron / 系统语言自动选择；无匹配内置语言包时回退英语。
+- **`SUPPORTED_PLAYER_LOCALES`**：查看支持的语言列表。
+- 运行时 **`getLocale()`** / **`setLocale(locale)`**：切换控制条语言（会同步更新 overlay）。
+
+```ts
+import { VlcPlayer, SUPPORTED_PLAYER_LOCALES } from "electron-vlc-player";
+
+console.log(SUPPORTED_PLAYER_LOCALES); // ['en', 'zh-CN', 'zh-TW', 'ja', ...]
+
+const player = new VlcPlayer({
+  window: win,
+  container: "#player",
+  vlcDir,
+  locale: "zh-CN",
+});
+
+player.setLocale("ja");
+```
+
 ### 进度条悬停预览
 
 控制条支持为**本地文件**离线生成悬停预览雪碧图（类似视频网站）。**网络 URL / 流媒体**不支持生成与悬停预览图。
@@ -352,7 +375,6 @@ player.generateSeekPreviewSprite(); // 或由控制栏「生成预览」触发
 - `playPrevious()` / `playNext()` 在列表内切换媒体；`hasPrevious()` / `hasNext()` 表示是否可切换。
 - 默认 `autoAdvancePlaylist: true`：当前条目 `endReached` 且存在下一项时自动播放下一个媒体（`playNext()`）。
 - **`playbackMode`**（默认 `default`）：片尾行为——`loop` 列表循环、`repeat` 单曲循环；可用 `getPlaybackMode()` / `setPlaybackMode()` 动态切换。
-- **`locale`**（可选）：控制条 UI 语言（BCP 47，如 `zh-CN`、`en`、`ja`）。省略时按 Electron / 系统语言自动选择；无匹配内置语言包时回退英语。可用 `SUPPORTED_PLAYER_LOCALES` 查看支持列表；运行时可用 `setLocale()` 切换。
 - 通过控制条或 API 切换媒体后会触发 `playlistItemChanged`（`{ src, index }`），便于更新标题、侧栏列表等；**播放器已 `setSource`，监听方无需再调一次 `setSource`**。
 
 ```ts
