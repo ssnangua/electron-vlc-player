@@ -9,7 +9,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { resolveEvpPaths } = require('./resolve-evp-package.cjs');
+const { resolveEvpPaths, isLocalRepoLink } = require('./resolve-evp-package.cjs');
 
 const exampleRoot = path.join(__dirname, '..');
 
@@ -85,9 +85,26 @@ async function rebuildModule() {
   }
 
   const { bindingPath, packageRoot, distIndex } = resolveEvpPaths();
+  const isLocal = isLocalRepoLink(exampleRoot);
   const electronVersion = requireFromExample('electron/package.json').version;
 
-  buildLibraryTypeScript(packageRoot);
+  if (isLocal) {
+    buildLibraryTypeScript(packageRoot);
+  } else if (!fs.existsSync(distIndex)) {
+    throw new Error(
+      `npm 包缺少 dist，无法运行 example：\n  ${distIndex}\n` +
+        '请确认 electron-vlc-player 已从 npm 正确安装。',
+    );
+  } else {
+    console.log('[example] 使用 npm 包内 dist/，跳过 TypeScript 编译');
+  }
+
+  if (!isLocal && fs.existsSync(bindingPath)) {
+    console.log('[example] native 已就绪，跳过 electron-rebuild');
+    console.log('  dist:', distIndex);
+    console.log('  native:', bindingPath);
+    return;
+  }
 
   removeDir(path.join(packageRoot, 'build'));
   removeDir(path.join(packageRoot, 'prebuilds'));

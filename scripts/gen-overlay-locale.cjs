@@ -5,7 +5,15 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const enPath = path.join(__dirname, '..', 'src', 'i18n', 'locales', 'en.json');
+const enCandidates = [
+  path.join(__dirname, '..', 'src', 'i18n', 'locales', 'en.json'),
+  path.join(__dirname, '..', 'dist', 'i18n', 'locales', 'en.json'),
+];
+const enPath = enCandidates.find((p) => fs.existsSync(p));
+if (!enPath) {
+  console.error('[gen-overlay-locale] missing en.json, tried:', enCandidates.join(', '));
+  process.exit(1);
+}
 const outPath = path.join(__dirname, '..', 'overlay', 'locale-fallback.js');
 
 const en = JSON.parse(fs.readFileSync(enPath, 'utf8'));
