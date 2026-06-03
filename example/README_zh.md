@@ -14,7 +14,7 @@
 
 1. 已安装 [VLC](https://www.videolan.org/vlc/) **3.0.x**（libVLC + `plugins`；暂不支持 VLC 4.x）
 2. **Electron >= 28**（本 example 使用 33.x）、**Node.js >= 18**（推荐 20/22）
-3. **Windows 10+** / **macOS 11+** / **Linux x64 + X11**
+3. **Windows 10+** / **macOS 11+** / **Linux（X11）**
 4. Windows 上编译 native 需 [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)（含「使用 C++ 的桌面开发」）
 
 ## 启动应用

@@ -99,15 +99,7 @@ async function rebuildModule() {
     console.log('[example] 使用 npm 包内 dist/，跳过 TypeScript 编译');
   }
 
-  if (!isLocal && fs.existsSync(bindingPath)) {
-    console.log('[example] native 已就绪，跳过 electron-rebuild');
-    console.log('  dist:', distIndex);
-    console.log('  native:', bindingPath);
-    return;
-  }
-
   removeDir(path.join(packageRoot, 'build'));
-  removeDir(path.join(packageRoot, 'prebuilds'));
   rebuildNativeElectron(packageRoot, electronVersion);
 
   if (!fs.existsSync(distIndex)) {

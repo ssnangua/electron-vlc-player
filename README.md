@@ -15,6 +15,8 @@ Embed libVLC in Electron pages with a simpler integration path and broader video
 npm install electron-vlc-player
 ```
 
+The `postinstall` script compiles the native module (`vlc_binding.node`) for your project's **Electron version**. Install platform **C++ build tools** first (see “Native module” below).
+
 ## Usage
 
 ```ts
@@ -42,8 +44,8 @@ player.setRate(1.25);
 
 | Platform    | Minimum (recommended)                                                         | Notes                                                                                         |
 | ----------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| **Windows** | **Windows 10** 64-bit                                                         | Prebuilds are provided for **x64** only                                                       |
-| **macOS**   | **macOS 11 Big Sur**                                                          | Intel (`x64`) or Apple Silicon (`arm64`)                                                      |
+| **Windows** | **Windows 10** or later                                                       |                                                                                               |
+| **macOS**   | **macOS 11 Big Sur** or later                                                 |                                                                                               |
 | **Linux**   | **Ubuntu 20.04** / **Debian 11** / **Fedora 34** or equivalent (glibc ≥ 2.31) | Embedding requires **X11** (`libX11`); pure Wayland is untested — use **XWayland** in practice. |
 
 ### Electron / Node.js
@@ -53,17 +55,36 @@ player.setRate(1.25);
 | **Electron** | **`>= 28.0.0`** |
 | **Node.js**  | **`>= 18.0.0`** |
 
-### Prebuilds
+### Native module
 
-On `npm install`, a **prebuilt** `vlc_binding.node` is preferred (`prebuilds/<platform>-<arch>/`, CI in [`.github/workflows/prebuild.yml`](.github/workflows/prebuild.yml)). If no matching artifact exists or Electron is installed, the binding is **rebuilt locally** for the Electron ABI.
+This package is **Electron-only**. The npm tarball **does not ship** a prebuilt `vlc_binding.node`.
 
-| Platform | Prebuilt architectures |
-| -------- | ---------------------- |
-| Windows  | **x64** (`win32-x64`)  |
-| macOS    | **x64**, **arm64**     |
-| Linux    | **x64**                |
+**Automatic build:** On `npm install`, the binding is compiled locally for your Electron **target architecture** (same as `process.arch`).
 
-Other architectures (e.g. Windows arm64, Linux arm64, 32-bit) require local `electron-rebuild` or `node-gyp rebuild` — see “Build native module from source” below.
+**Manual rebuild** (when `postinstall` fails, after upgrading Electron, etc.):
+
+```bash
+# In your app project root
+npx electron-rebuild -f -w electron-vlc-player
+
+# When developing this library at the repo root
+npm run rebuild
+```
+
+Set `SKIP_EVP_NATIVE_REBUILD=1` to skip automatic rebuild in the `install` script.
+
+You also need:
+
+- Platform **C++ build tools** (see table below)
+- **libVLC built for the same architecture** as your Electron app (e.g. arm64 VLC on Apple Silicon)
+
+| Platform    | Build dependencies                                                |
+| ----------- | ----------------------------------------------------------------- |
+| **Windows** | Visual Studio Build Tools (“Desktop development with C++”), Python 3 |
+| **macOS**   | Xcode Command Line Tools                                          |
+| **Linux**   | `build-essential`, `libx11-dev`, Python 3                         |
+
+Which platform/arch combinations work in practice depends on **Electron’s official support** and whether you can supply a matching libVLC for that arch.
 
 ### libVLC runtime and `vlcDir`
 
@@ -474,18 +495,6 @@ When the overlay has focus, mouse and keyboard shortcuts are available.
 | `Ctrl` + `←` / `→`  | Seek −1m / +1m                  |
 | `Alt` + `←` / `→`   | Seek −1 / +1 frame              |
 | `↑` / `↓`           | Volume +10% / −10%              |
-
-### Build native module from source
-
-Install platform build tools, then run `npm run rebuild` (in your app: `npx electron-rebuild -f -w electron-vlc-player`):
-
-| Platform    | Dependencies                                                      |
-| ----------- | ----------------------------------------------------------------- |
-| **Windows** | Visual Studio Build Tools (“Desktop development with C++”), Python 3 |
-| **macOS**   | Xcode Command Line Tools                                          |
-| **Linux**   | `build-essential`, `libx11-dev`, Python 3                         |
-
-Set `SKIP_EVP_NATIVE_REBUILD=1` to skip automatic rebuild in the `install` script.
 
 ## Source layout
 

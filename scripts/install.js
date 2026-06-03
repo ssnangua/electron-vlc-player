@@ -55,56 +55,6 @@ function resolveElectronVersion(appRoot) {
   }
 }
 
-function copyBinding(src) {
-  fs.mkdirSync(path.dirname(bindingDest), { recursive: true });
-  fs.copyFileSync(src, bindingDest);
-  return true;
-}
-
-/** prebuildify 输出：prebuilds/<platform>-<arch>/vlc_binding.node */
-function tryLocalPrebuild() {
-  const triple = `${process.platform}-${process.arch}`;
-  const candidates = [
-    path.join(packageRoot, 'prebuilds', triple, 'vlc_binding.node'),
-    path.join(packageRoot, 'prebuilds', triple, 'node.napi.node'),
-  ];
-  for (const src of candidates) {
-    if (fs.existsSync(src)) {
-      copyBinding(src);
-      console.log(`[electron-vlc-player] 已使用本地 prebuild (${triple})`);
-      return true;
-    }
-  }
-  return false;
-}
-
-/** 从 GitHub Release 下载（发布 npm 包且带 release 资源时） */
-function tryPrebuildInstallDownload() {
-  let bin;
-  try {
-    bin = require.resolve('prebuild-install/bin.js', { paths: [packageRoot, __dirname] });
-  } catch {
-    return false;
-  }
-
-  const result = spawnSync(process.execPath, [bin], {
-    cwd: packageRoot,
-    env: {
-      ...process.env,
-      npm_config_runtime: 'napi',
-      npm_config_build_from_source: 'false',
-    },
-    stdio: 'pipe',
-    encoding: 'utf8',
-  });
-
-  if (result.status === 0 && fs.existsSync(bindingDest)) {
-    console.log('[electron-vlc-player] 已通过 prebuild-install 安装 napi 二进制');
-    return true;
-  }
-  return false;
-}
-
 async function rebuildWithModule(appRoot, electronVersion) {
   const options = {
     buildPath: appRoot,
@@ -146,6 +96,10 @@ function resolveConsumerAppRoot() {
   return null;
 }
 
+function warnManualRebuild() {
+  console.warn('  npx electron-rebuild -f -w electron-vlc-player');
+}
+
 async function main() {
   if (process.env.SKIP_EVP_NATIVE_REBUILD === '1') {
     return;
@@ -154,34 +108,30 @@ async function main() {
   const appRoot = resolveConsumerAppRoot();
   const electronVersion = appRoot ? resolveElectronVersion(appRoot) : null;
 
-  // 消费者已安装 Electron 时，必须为 Electron ABI 编译，不能先用 Node prebuild
-  if (appRoot && electronVersion) {
-    console.log(
-      `[electron-vlc-player] 正在为 Electron ${electronVersion} 编译 native 模块…`,
-    );
-    const ok =
-      (await rebuildWithModule(appRoot, electronVersion)) || rebuildWithNpx(appRoot);
-    if (ok) return;
-    console.warn('[electron-vlc-player] Electron 编译失败，尝试 Node prebuild 回退…');
-  }
-
-  if (tryLocalPrebuild() || tryPrebuildInstallDownload()) {
-    return;
-  }
-
   if (!appRoot) {
     console.warn(
-      '[electron-vlc-player] 无可用 prebuild，且无法定位应用根目录。请执行 npm run rebuild 或安装 electron 后 electron-rebuild。',
+      '[electron-vlc-player] 无法定位应用根目录，跳过 native 编译。',
     );
+    console.warn('  安装 electron 后请执行：');
+    warnManualRebuild();
     return;
   }
 
   if (!electronVersion) {
-    console.warn(
-      '[electron-vlc-player] 无 prebuild 且未检测到 electron。请先安装 electron，或从源码编译：',
-    );
-    console.warn('  npm run rebuild');
-    console.warn('  npx electron-rebuild -f -w electron-vlc-player');
+    console.warn('[electron-vlc-player] 未检测到 electron，跳过 native 编译。');
+    console.warn('  请先安装 electron，然后执行：');
+    warnManualRebuild();
+    return;
+  }
+
+  console.log(
+    `[electron-vlc-player] 正在为 Electron ${electronVersion} 编译 native 模块…`,
+  );
+  const ok =
+    (await rebuildWithModule(appRoot, electronVersion)) || rebuildWithNpx(appRoot);
+  if (!ok) {
+    console.warn('[electron-vlc-player] Electron 编译失败。请确认已安装平台构建工具，然后执行：');
+    warnManualRebuild();
   }
 }
 

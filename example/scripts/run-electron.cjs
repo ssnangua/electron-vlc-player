@@ -16,10 +16,13 @@ function resolveElectronPath() {
 const electronPath = resolveElectronPath();
 const entry = process.argv[2] || 'dist/main.js';
 
-const result = spawnSync(electronPath, [entry], {
+const result = spawnSync(electronPath, ['--disable-crash-reporter', entry], {
   cwd: exampleRoot,
   stdio: 'inherit',
-  env: process.env,
+  env: {
+    ...process.env,
+    ELECTRON_DISABLE_CRASH_REPORTER: '1',
+  },
 });
 
 if (result.error) {

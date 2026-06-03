@@ -15,6 +15,8 @@
 npm install electron-vlc-player
 ```
 
+`postinstall` 会按你项目中的 **Electron 版本**自动编译 native 模块（`vlc_binding.node`）。请预先安装对应平台的 **C++ 构建工具**（见下文「Native 模块编译」）。
+
 ## 用法
 
 ```ts
@@ -42,8 +44,8 @@ player.setRate(1.25);
 
 | 平台        | 最低版本（建议）                                                                | 说明                                                                                  |
 | ----------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| **Windows** | **Windows 10** 64 位                                                            | 只提供 64 位 (`x64`) 系统的 prebuild                                                  |
-| **macOS**   | **macOS 11 Big Sur**                                                            | Intel (`x64`) 或 Apple Silicon (`arm64`)                                              |
+| **Windows** | **Windows 10** 及以上                                                           |                                                                                       |
+| **macOS**   | **macOS 11 Big Sur** 及以上                                                     |                                                                                       |
 | **Linux**   | **Ubuntu 20.04** / **Debian 11** / **Fedora 34** 或同等新发行版（glibc ≥ 2.31） | 嵌入依赖 **X11**（`libX11`）；纯 Wayland 会话未专门测试，通常需经 **XWayland** 使用。 |
 
 ### Electron / Node.js
@@ -53,17 +55,36 @@ player.setRate(1.25);
 | **Electron** | **`>= 28.0.0`** |
 | **Node.js**  | **`>= 18.0.0`** |
 
-### 预构建
+### Native 模块编译
 
-`npm install` 时会优先使用 **prebuild** 的 `vlc_binding.node`（`prebuilds/<platform>-<arch>/`，CI 见 [`.github/workflows/prebuild.yml`](.github/workflows/prebuild.yml)）；若无匹配产物或已安装 Electron，则按 Electron ABI **本地重编**。
+本包 **仅面向 Electron**，npm 包内 **不包含** 预编译的 `vlc_binding.node`。
 
-| 平台    | 提供 prebuild 的架构   |
-| ------- | ---------------------- |
-| Windows | **x64**（`win32-x64`） |
-| macOS   | **x64**、**arm64**     |
-| Linux   | **x64**                |
+**自动编译：** `npm install` 时会按你项目中 Electron 的**目标架构**（与 `process.arch` 一致）尝试本地编译 `vlc_binding.node`。
 
-其它架构（如 Windows arm64、Linux arm64、32 位等）需在本机 `electron-rebuild` 或 `node-gyp rebuild`，见下文「从源码编译」。
+**手动重编**（`postinstall` 失败、升级 Electron 后等）：
+
+```bash
+# 在应用项目根目录
+npx electron-rebuild -f -w electron-vlc-player
+
+# 在本仓库根目录开发库本身时
+npm run rebuild
+```
+
+环境变量 `SKIP_EVP_NATIVE_REBUILD=1` 可跳过 `install` 脚本中的自动重编。
+
+请同时满足：
+
+- 已安装对应平台的 **C++ 构建工具**（见下表）
+- **libVLC 与 Electron 为同一架构**（例如 Apple Silicon 上需 arm64 版 VLC / libVLC）
+
+| 平台        | 构建依赖                                                       |
+| ----------- | -------------------------------------------------------------- |
+| **Windows** | Visual Studio Build Tools（「使用 C++ 的桌面开发」）、Python 3 |
+| **macOS**   | Xcode Command Line Tools                                       |
+| **Linux**   | `build-essential`、`libx11-dev`、Python 3                      |
+
+实际可运行的平台与架构组合，以 **Electron 官方支持**及你能否为该架构提供匹配的 libVLC 为准。
 
 ### libVLC 运行时与 `vlcDir`
 
@@ -474,18 +495,6 @@ overlay 获得焦点时，支持鼠标与键盘操作。
 | `Ctrl` + `←` / `→`  | 后退 / 前进 1 分钟  |
 | `Alt` + `←` / `→`   | 后退 / 前进 1 帧    |
 | `↑` / `↓`           | 音量 +10% / -10%    |
-
-### 从源码编译 native 模块
-
-在对应平台安装构建工具后执行 `npm run rebuild`（在应用目录内对 Electron 用 `npx electron-rebuild -f -w electron-vlc-player`）：
-
-| 平台        | 依赖                                                           |
-| ----------- | -------------------------------------------------------------- |
-| **Windows** | Visual Studio Build Tools（「使用 C++ 的桌面开发」）、Python 3 |
-| **macOS**   | Xcode Command Line Tools                                       |
-| **Linux**   | `build-essential`、`libx11-dev`、Python 3                      |
-
-环境变量 `SKIP_EVP_NATIVE_REBUILD=1` 可跳过 `install` 脚本中的自动重编。
 
 ## 源码结构
 

@@ -14,7 +14,7 @@ Summary:
 
 1. [VLC](https://www.videolan.org/vlc/) **3.0.x** installed (libVLC + `plugins`; VLC 4.x is not supported)
 2. **Electron >= 28** (this example uses 33.x), **Node.js >= 18** (20/22 recommended)
-3. **Windows 10+** / **macOS 11+** / **Linux x64 + X11**
+3. **Windows 10+** / **macOS 11+** / **Linux (X11)**
 4. On Windows, native rebuild requires [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with “Desktop development with C++”
 
 ## Run the app

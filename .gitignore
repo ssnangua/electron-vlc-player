@@ -2,9 +2,9 @@ node_modules/
 dist/
 build/
 bin/
+prebuilds/
 *.log
 .DS_Store
 *.node
-!prebuilds/**/*.node
 example/dist/
 example/out/
