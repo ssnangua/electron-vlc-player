@@ -16,7 +16,7 @@ function resolveEvpPaths() {
   };
 }
 
-/** `file:..` 链接到本仓库根目录时为 true */
+/** True when `file:..` resolves to this repository root */
 function isLocalRepoLink(exampleRoot) {
   const repoRoot = path.join(exampleRoot, '..');
   let packageRoot;

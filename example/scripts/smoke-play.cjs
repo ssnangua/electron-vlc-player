@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * 最小播放测试：无 UI，仅验证 libVLC + native + Electron 嵌入是否崩溃。
- * 必须用 Electron 启动（不要用 node）:
+ * Minimal playback test: no UI; verifies libVLC + native + Electron embed without crashing.
+ * Must be started with Electron (not plain node):
  *   npm run smoke-play
  *   npm run smoke-play -- "C:\path\to\video.mp4"
  *   node scripts/run-smoke-play.cjs
@@ -13,10 +13,10 @@ const electron = require('electron');
 
 if (!electron?.app) {
   console.error(
-    '[smoke] 请通过 Electron 运行本脚本，例如:\n' +
+    '[smoke] Run this script via Electron, for example:\n' +
       '  npm run smoke-play\n' +
-      '  npm run smoke-play -- "<视频路径>"\n' +
-      '  node scripts/run-smoke-play.cjs "<视频路径>"',
+      '  npm run smoke-play -- "<video-path>"\n' +
+      '  node scripts/run-smoke-play.cjs "<video-path>"',
   );
   process.exit(1);
 }
@@ -30,12 +30,12 @@ const smokePage = path.join(exampleRoot, 'test', 'smoke.html');
 const videoPath = process.argv[2] || defaultVideo;
 
 if (!fs.existsSync(videoPath)) {
-  console.error(`[smoke] 视频不存在: ${videoPath}`);
-  console.error('  默认: example/test/nice.mp4，或传入路径: npm run smoke-play -- "<视频>"');
+  console.error(`[smoke] Video not found: ${videoPath}`);
+  console.error('  Default: example/test/nice.mp4, or pass a path: npm run smoke-play -- "<video>"');
   process.exit(1);
 }
 if (!fs.existsSync(smokePage)) {
-  console.error(`[smoke] 页面不存在: ${smokePage}`);
+  console.error(`[smoke] Page not found: ${smokePage}`);
   process.exit(1);
 }
 

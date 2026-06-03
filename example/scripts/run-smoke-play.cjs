@@ -1,10 +1,10 @@
 'use strict';
 
 /**
- * 用 Electron 主进程运行 smoke-play.cjs（不能用裸 node）。
- * 用法: npm run smoke-play
- *   或: npm run smoke-play -- "C:\path\to\video.mkv"
- *   或: node scripts/run-smoke-play.cjs [video-file]
+ * Run smoke-play.cjs in the Electron main process (not plain node).
+ * Usage: npm run smoke-play
+ *   or: npm run smoke-play -- "C:\path\to\video.mkv"
+ *   or: node scripts/run-smoke-play.cjs [video-file]
  */
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');

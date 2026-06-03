@@ -13,26 +13,26 @@ let paths;
 try {
   paths = require('./resolve-evp-package.cjs').resolveEvpPaths();
 } catch {
-  fail('未安装 electron-vlc-player。请执行：\n  npm install');
+  fail('electron-vlc-player is not installed. Run:\n  npm install');
 }
 
 const { distIndex, bindingPath } = paths;
 
 if (!fs.existsSync(distIndex)) {
   fail(
-    'electron-vlc-player 缺少 dist/。请在 example 目录执行：\n  npm run rebuild',
+    'electron-vlc-player is missing dist/. From the example directory run:\n  npm run rebuild',
   );
 }
 
 if (!fs.existsSync(bindingPath)) {
   if (forPack) {
     console.log(
-      '[example] native 模块将由 electron-builder 重编，跳过预检。',
+      '[example] Skipping native pre-check; electron-builder will rebuild it.',
     );
     process.exit(0);
   }
   fail(
-    `native 模块不存在：\n  ${bindingPath}\n` +
-      '请在 example 目录执行：\n  npm install\n  或\n  npm run rebuild',
+    `Native module not found:\n  ${bindingPath}\n` +
+      'From the example directory run:\n  npm install\n  or\n  npm run rebuild',
   );
 }

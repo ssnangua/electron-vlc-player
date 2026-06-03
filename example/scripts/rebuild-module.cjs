@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * 本地开发一键重编 electron-vlc-player：
- * 1. 根目录 tsc → dist/
- * 2. 按当前 Electron 版本 node-gyp → vlc_binding.node
+ * One-shot rebuild of electron-vlc-player for local development:
+ * 1. Root tsc → dist/
+ * 2. node-gyp → vlc_binding.node for the current Electron version
  */
 
 const fs = require('node:fs');
@@ -45,7 +45,7 @@ function removeDir(dir) {
 }
 
 function buildLibraryTypeScript(packageRoot) {
-  console.log('[example] ① TypeScript → dist/ …');
+  console.log('[example] (1) TypeScript → dist/ …');
   runNpmScript(packageRoot, 'build');
 }
 
@@ -63,7 +63,7 @@ function rebuildNativeElectron(packageRoot, electronVersion) {
   };
 
   console.log(
-    `[example] ② native (Electron ${electronVersion}, ${process.arch}) …`,
+    `[example] (2) native (Electron ${electronVersion}, ${process.arch}) …`,
   );
 
   const result = spawnSync(process.execPath, [nodeGypBin, 'rebuild'], {
@@ -80,7 +80,7 @@ function rebuildNativeElectron(packageRoot, electronVersion) {
 
 async function rebuildModule() {
   if (process.env.SKIP_EVP_NATIVE_REBUILD === '1') {
-    console.log('[example] SKIP_EVP_NATIVE_REBUILD=1，跳过 rebuild');
+    console.log('[example] SKIP_EVP_NATIVE_REBUILD=1, skipping rebuild');
     return;
   }
 
@@ -92,23 +92,23 @@ async function rebuildModule() {
     buildLibraryTypeScript(packageRoot);
   } else if (!fs.existsSync(distIndex)) {
     throw new Error(
-      `npm 包缺少 dist，无法运行 example：\n  ${distIndex}\n` +
-        '请确认 electron-vlc-player 已从 npm 正确安装。',
+      `npm package is missing dist/; cannot run the example:\n  ${distIndex}\n` +
+        'Ensure electron-vlc-player was installed correctly from npm.',
     );
   } else {
-    console.log('[example] 使用 npm 包内 dist/，跳过 TypeScript 编译');
+    console.log('[example] Using dist/ from npm package; skipping TypeScript compile');
   }
 
   removeDir(path.join(packageRoot, 'build'));
   rebuildNativeElectron(packageRoot, electronVersion);
 
   if (!fs.existsSync(distIndex)) {
-    throw new Error(`dist 缺失：\n  ${distIndex}`);
+    throw new Error(`Missing dist/:\n  ${distIndex}`);
   }
   if (!fs.existsSync(bindingPath)) {
     throw new Error(
-      `native 缺失：\n  ${bindingPath}\n` +
-        '请确认已安装 Visual Studio Build Tools（Windows）。',
+      `Missing native module:\n  ${bindingPath}\n` +
+        'On Windows, ensure Visual Studio Build Tools are installed.',
     );
   }
 
@@ -117,7 +117,7 @@ async function rebuildModule() {
     console.log('[example] ABI:', fs.readFileSync(metaPath, 'utf8').trim());
   }
 
-  console.log('[example] rebuild 完成');
+  console.log('[example] rebuild complete');
   console.log('  dist:', distIndex);
   console.log('  native:', bindingPath);
 }

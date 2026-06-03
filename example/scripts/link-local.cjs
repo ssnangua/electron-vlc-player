@@ -26,10 +26,10 @@ function runNpm(args, cwd, extraEnv = {}) {
 
 function ensureLocalPackageLink() {
   if (isLocalRepoLink(exampleRoot)) {
-    console.log('[example] 已链接本仓库 electron-vlc-player (file:..)。');
+    console.log('[example] Already linked to local electron-vlc-player (file:..).');
     return;
   }
-  console.log('[example] 链接 electron-vlc-player@file:.. (--no-save)…');
+  console.log('[example] Linking electron-vlc-player@file:.. (--no-save)…');
   runNpm(
     ['install', 'electron-vlc-player@file:..', '--no-save'],
     exampleRoot,
@@ -45,10 +45,10 @@ function ensureRepoDependencies() {
   if (markers.every((p) => fs.existsSync(p))) {
     return;
   }
-  console.log('[example] 安装 electron-vlc-player 根目录依赖…');
+  console.log('[example] Installing electron-vlc-player root dependencies…');
   runNpm(['install'], repoRoot, { SKIP_EVP_NATIVE_REBUILD: '1' });
 }
 
 ensureLocalPackageLink();
 ensureRepoDependencies();
-console.log('[example] 链接完成。请执行：npm run rebuild && npm start');
+console.log('[example] Link complete. Next: npm run rebuild && npm run dev');

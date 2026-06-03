@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * electron-builder 无法把 file:.. 链到的仓库根目录（含 repo 根下 build/）打进 asar。
- * 本地开发打包前用 npm pack 安装一份符合 npm "files" 字段的库副本。
+ * electron-builder cannot pack a file:.. link to the repo root (including build/ at repo root) into asar.
+ * Before packaging locally, install a publishable copy via npm pack (respects npm "files").
  */
 
 const fs = require('node:fs');
@@ -33,7 +33,7 @@ function preparePackDeps() {
   }
 
   console.log(
-    '[example] 检测到本地 file:.. 链接；打包前用 npm pack 安装可发布的库副本…',
+    '[example] Local file:.. link detected; installing a publishable copy via npm pack before packaging…',
   );
 
   fs.rmSync(packDir, { recursive: true, force: true });
@@ -45,7 +45,7 @@ function preparePackDeps() {
     .readdirSync(packDir)
     .find((name) => name.endsWith('.tgz'));
   if (!tgz) {
-    throw new Error(`npm pack 未在 ${packDir} 生成 .tgz`);
+    throw new Error(`npm pack did not produce a .tgz in ${packDir}`);
   }
 
   runNpm(
@@ -61,7 +61,7 @@ function preparePackDeps() {
   );
 
   console.log(
-    '[example] 已临时安装 npm pack 副本（electron-builder 会重编 native）。打包后可 npm run link 恢复本地链接。',
+    '[example] Installed npm pack copy temporarily (electron-builder will rebuild native). Run npm run link after packaging to restore the local link.',
   );
 }
 
