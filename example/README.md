@@ -21,8 +21,10 @@ Summary:
 
 ```bash
 npm install
-npm start
+npm run dev
 ```
+
+(`npm start` is the same as `npm run dev`.)
 
 ## Develop against the local library
 
@@ -30,24 +32,45 @@ npm start
 npm install
 npm run link         # use local electron-vlc-player@file:..
 npm run rebuild      # rebuild native binding for current Electron
-npm start
+npm run dev
 ```
 
 After changing library code:
 
 ```bash
 npm run rebuild
-npm start
+npm run dev
 ```
 
 | Command               | Purpose                                                                 |
 | --------------------- | ----------------------------------------------------------------------- |
+| **`npm run compile`** | Compile example TypeScript only → `dist/`                             |
+| **`npm run dev`**     | Compile + verify library artifacts + launch Electron (daily dev)      |
+| **`npm start`**       | Same as **`npm run dev`**                                               |
 | **`npm run link`**    | Switch dependency to local `electron-vlc-player@file:..`              |
 | **`npm run rebuild`** | Rebuild the library (`tsc` + `vlc_binding.node` for current Electron) |
-| **`npm start`**       | Build example `src/` only, verify artifacts, launch Electron          |
+| **`npm run pack`**    | Compile + output unpacked app dir (`release/win-unpacked/`, etc.)       |
+| **`npm run build`**   | Compile + installers (Windows NSIS, macOS DMG, Linux AppImage) → `release/` |
+| **`npm run dist`**    | Same as **`npm run build`**                                             |
 | **`npm run unlink`**  | Restore npm registry version of `electron-vlc-player`                 |
 
 `npm install` postinstall runs the same steps as `rebuild` (slow on first install).
+
+## Package for release
+
+```bash
+npm run build
+```
+
+Output goes to `example/release/`. The installer **does not bundle libVLC** — the target machine still needs [VLC 3.0.x](https://www.videolan.org/vlc/) installed; if auto-detection fails, pick the VLC directory from the top bar.
+
+If you use `npm run link`, the pack scripts run `npm pack` first so the app is built from a publishable library layout (not the whole repo root). Run `npm run link` again after packaging to restore the dev symlink.
+
+For a quick unpacked build without an installer:
+
+```bash
+npm run pack
+```
 
 ## Layout
 
@@ -105,6 +128,6 @@ After configuration, open a **local file** and the **Generate preview** button a
 
 ## Common logs and errors
 
-- **`crashpad_client_win.cc(868) not connected`**: crash report noise; if the app misbehaves, run `npm run rebuild` then `npm start`.
+- **`crashpad_client_win.cc(868) not connected`**: crash report noise; if the app misbehaves, run `npm run rebuild` then `npm run dev`.
 - **`Cannot find module '...\vlc_binding.node'`** or missing **`dist/`**: run `npm run rebuild`.
 - Cannot click the video area: do not call `app.disableHardwareAcceleration()` at app entry (see root README “Integration notes”).

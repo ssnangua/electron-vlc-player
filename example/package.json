@@ -3,14 +3,19 @@
   "version": "0.0.0",
   "private": true,
   "description": "Example Electron app",
+  "author": "ssnangua",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && node scripts/copy-renderer-html.cjs",
+    "compile": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && node scripts/copy-renderer-html.cjs",
+    "dev": "npm run compile && node scripts/check-native.cjs && node scripts/run-electron.cjs",
+    "start": "npm run dev",
     "postinstall": "node scripts/rebuild-module.cjs",
     "link": "node scripts/link-local.cjs",
     "unlink": "node scripts/unlink-local.cjs",
     "rebuild": "node scripts/rebuild-module.cjs",
-    "start": "npm run build && node scripts/check-native.cjs && node scripts/run-electron.cjs",
+    "pack": "npm run compile && node scripts/prepare-pack-deps.cjs && node scripts/check-native.cjs --for-pack && electron-builder --dir",
+    "build": "npm run compile && node scripts/prepare-pack-deps.cjs && node scripts/check-native.cjs --for-pack && electron-builder",
+    "dist": "npm run build",
     "smoke-play": "node scripts/run-smoke-play.cjs"
   },
   "dependencies": {
@@ -19,6 +24,55 @@
   "devDependencies": {
     "@electron/rebuild": "^3.7.1",
     "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
     "typescript": "^5.7.2"
+  },
+  "build": {
+    "appId": "com.github.ssnangua.electron-vlc-player-example",
+    "productName": "Electron VLC Player",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json",
+      "!src/**",
+      "!scripts/**",
+      "!test/**",
+      "!**/How_It_Works.jpg",
+      "!**/Screenshot.jpg",
+      "!**/example/**",
+      "!**/.github/**",
+      "!**/README*.md"
+    ],
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "category": "public.app-category.video",
+      "target": [
+        "dmg"
+      ]
+    },
+    "linux": {
+      "category": "Video",
+      "target": [
+        "AppImage"
+      ]
+    }
   }
 }

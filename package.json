@@ -1,6 +1,6 @@
 {
   "name": "electron-vlc-player",
-  "version": "0.1.6",
+  "version": "1.0.0",
   "description": "Embed libVLC in Electron with built-in overlay controls",
   "author": "ssnangua",
   "license": "MIT",

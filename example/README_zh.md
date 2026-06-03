@@ -21,7 +21,7 @@
 
 ```bash
 npm install
-npm start
+npm run dev
 ```
 
 ## 本仓库开发
@@ -30,24 +30,45 @@ npm start
 npm install
 npm run link         # 将依赖切换为本地 `electron-vlc-player@file:..`
 npm run rebuild      # 重编本地 `electron-vlc-player`
-npm start
+npm run dev
 ```
 
 每次改完库逻辑，只需：
 
 ```bash
 npm run rebuild
-npm start
+npm run dev
 ```
 
 | 命令                  | 作用                                                                   |
 | --------------------- | ---------------------------------------------------------------------- |
+| **`npm run compile`** | 仅编译 example 的 TypeScript → `dist/`                                 |
+| **`npm run dev`**     | 编译 + 检查库产物 + 启动 Electron（日常开发）                          |
+| **`npm start`**       | 同 **`npm run dev`**                                                   |
 | **`npm run link`**    | 将依赖切换为本地 `electron-vlc-player@file:..`，并安装根目录 dev 依赖  |
 | **`npm run rebuild`** | **重编整个库**：根目录 `tsc` + 按当前 Electron 重编 `vlc_binding.node` |
-| **`npm start`**       | 只编译 **example 自己的** `src/`，检查库产物，启动 Electron            |
+| **`npm run pack`**    | 编译 + 打包为未安装目录（`release/win-unpacked/` 等，便于快速验证）   |
+| **`npm run build`**   | 编译 + 生成安装包（Windows NSIS、macOS DMG、Linux AppImage）→ `release/` |
+| **`npm run dist`**    | 同 **`npm run build`**                                                 |
 | **`npm run unlink`**  | 改回 npm 上最新版本的 `electron-vlc-player`                            |
 
 `npm install` 的 postinstall 会执行与 `rebuild` 相同的步骤（首次较慢）。
+
+## 打包发布
+
+```bash
+npm run build
+```
+
+产物在 `example/release/`。安装包**不包含 libVLC**，目标机器仍需单独安装 [VLC 3.x](https://www.videolan.org/vlc/)；首次启动若未探测到路径，可在顶栏手动选择 VLC 目录。
+
+若当前使用 `npm run link` 本地链接，打包脚本会自动 `npm pack` 一份可发布副本（避免把整个仓库根目录打进 asar）；打包完成后可再执行 `npm run link` 恢复开发链接。
+
+仅验证打包结果、不生成安装程序时：
+
+```bash
+npm run pack
+```
 
 ## 页面布局
 
@@ -105,6 +126,6 @@ new VlcPlayer({
 
 ## 常见日志与报错
 
-- **`crashpad_client_win.cc(868) not connected`**：崩溃附带日志；若异常请 `npm run rebuild` 后再 `npm start`。
+- **`crashpad_client_win.cc(868) not connected`**：崩溃附带日志；若异常请 `npm run rebuild` 后再 `npm run dev`。
 - **`Cannot find module '...\vlc_binding.node'`** 或 **缺少 `dist/`**：`npm run rebuild`。
 - 画面区点不到鼠标：勿在应用入口调用 `app.disableHardwareAcceleration()`（见根目录 README「集成注意」）。
