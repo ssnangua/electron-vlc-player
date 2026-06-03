@@ -481,8 +481,6 @@ player.setSource("https://example.com/live.m3u8", {
 });
 ```
 
-Custom context menu: listen for `overlayContextMenu` (`{ x, y }` in overlay client coords) then `Menu.popup`.
-
 ### Utilities
 
 - `probeMedia(src, timeoutMs?)` — parse duration and basic metadata without loading into the player (requires init libVLC); returns `MediaProbeResult`

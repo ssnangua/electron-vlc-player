@@ -481,8 +481,6 @@ player.setSource("https://example.com/live.m3u8", {
 });
 ```
 
-自定义右键菜单：监听 `overlayContextMenu`（`{ x, y }` 为 overlay 客户区坐标）后可自行 `Menu.popup`
-
 ### 工具
 
 - `probeMedia(src, timeoutMs?)` — 解析路径/URL 的时长与基础元数据，不加载进播放器（须已 init libVLC）；返回 `MediaProbeResult`
