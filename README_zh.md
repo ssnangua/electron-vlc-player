@@ -200,13 +200,13 @@ try {
 
 `VlcPlayer` 继承 `LibVLC`（libVLC 播放 API + 事件），**`embed()` 之后可直接** `player.play()`、`player.setSource()`、`player.on('playing')` 等。
 
-**嵌入与布局：**
+#### **嵌入与布局**
 
 - `embed()` / `isEmbedded()` / `destroy()`
 - `setContainer()` / `setPageFullscreen()` / `setFullScreen()`（及 `isPageFullscreen()` / `isFullScreen()`）
 - `hideOverlay()` / `showOverlay()` / `focusOverlay()`（系统文件对话框、播放列表切歌后恢复 overlay 焦点，见上文「集成注意」）
 
-**libVLC 播放控制**（`embed()` 后可用）：
+#### **libVLC 播放控制**（`embed()` 后可用）
 
 | 类别 | 方法                                                                                                                                                                                   |
 | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -219,7 +219,9 @@ try {
 | 章节 | `getChapter`, `setChapter`, `nextChapter`, `previousChapter`, `getTitleDescriptions` 等                                                                                                |
 | 其它 | `navigate`, `setVlcFullscreen`, `setRole`, `getFps`, `hasVout`                                                                                                                         |
 
-常量：`VlcState`, `VlcNavigate`, `VlcRole`, `VlcEvent`, `VlcEventName`。
+#### 常量
+
+`VlcState`, `VlcNavigate`, `VlcRole`, `VlcEvent`, `VlcEventName`。
 
 #### `mediaOptions`
 

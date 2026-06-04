@@ -200,13 +200,13 @@ try {
 
 `VlcPlayer` extends `LibVLC` (libVLC playback API + events). **After `embed()`** you can call `player.play()`, `player.setSource()`, `player.on('playing')`, etc. directly.
 
-**Embedding and layout:**
+#### **Embedding and layout**
 
 - `embed()` / `isEmbedded()` / `destroy()`
 - `setContainer()` / `setPageFullscreen()` / `setFullScreen()` (and `isPageFullscreen()` / `isFullScreen()`)
 - `hideOverlay()` / `showOverlay()` / `focusOverlay()` (file dialogs, refocus after playlist changes — see “Integration notes”)
 
-**libVLC playback** (after `embed()`):
+#### **libVLC playback** (after `embed()`)
 
 | Category   | Methods                                                                                                                                                                                   |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -219,9 +219,11 @@ try {
 | Chapters   | `getChapter`, `setChapter`, `nextChapter`, `previousChapter`, `getTitleDescriptions`, etc.                                                                                                |
 | Other      | `navigate`, `setVlcFullscreen`, `setRole`, `getFps`, `hasVout`                                                                                                                            |
 
-Constants: `VlcState`, `VlcNavigate`, `VlcRole`, `VlcEvent`, `VlcEventName`.
+#### Constants
 
-#### `mediaOptions` example:
+`VlcState`, `VlcNavigate`, `VlcRole`, `VlcEvent`, `VlcEventName`.
+
+#### `mediaOptions`
 
 ```ts
 player.setSource("https://example.com/live.m3u8", {
