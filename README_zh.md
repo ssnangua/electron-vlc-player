@@ -317,7 +317,9 @@ player.on("endReached", (ev) => console.log("结束", ev.time));
 
 常用事件：`playing` | `paused` | `stopped` | `endReached` | `timeChanged` | `positionChanged` | `lengthChanged` | `buffering` | `error` | `playlistItemChanged`（见 `VlcEventName`）。
 
-#### 轨道切换（控制条「音轨」「字幕」弹层或 `set*Track` 均会触发）：
+#### 轨道切换
+
+控制条「音轨」「字幕」弹层或 `set*Track` 均会触发：
 
 ```ts
 player.on("audioTrackChanged", ({ trackId }) => {

@@ -317,7 +317,9 @@ player.on("endReached", (ev) => console.log("ended", ev.time));
 
 Common events: `playing` | `paused` | `stopped` | `endReached` | `timeChanged` | `positionChanged` | `lengthChanged` | `buffering` | `error` | `playlistItemChanged` (see `VlcEventName`).
 
-#### Track changes (control bar audio/subtitle menus or `set*Track`):
+#### Track changes
+
+Control bar audio/subtitle menus or `set*Track`:
 
 ```ts
 player.on("audioTrackChanged", ({ trackId }) => {
