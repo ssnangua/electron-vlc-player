@@ -367,7 +367,7 @@ setHardwareAcceleration("any");
 const player2 = new VlcPlayer({ window: win, container: "#player", vlcDir });
 ```
 
-### Localization (control bar UI)
+### Localization
 
 Built-in control bar, track menus, subtitle dialogs, and related overlay strings support multiple locales.
 

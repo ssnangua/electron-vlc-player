@@ -367,7 +367,7 @@ setHardwareAcceleration("any");
 const player2 = new VlcPlayer({ window: win, container: "#player", vlcDir });
 ```
 
-### 多语言（控制条 UI）
+### 多语言
 
 内置控制条、轨菜单、字幕对话框等 UI 文案支持多语言。
 
