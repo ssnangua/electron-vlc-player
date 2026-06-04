@@ -221,6 +221,88 @@ try {
 
 Constants: `VlcState`, `VlcNavigate`, `VlcRole`, `VlcEvent`, `VlcEventName`.
 
+#### `mediaOptions` example:
+
+```ts
+player.setSource("https://example.com/live.m3u8", {
+  mediaOptions: [":network-caching=3000"],
+});
+```
+
+#### Metadata, tracks, and duration
+
+Use `parseMedia()` for metadata, tracks, and duration.
+
+> libVLC 3 reads track tables via `libvlc_media_tracks_get` (or legacy `libvlc_media_get_tracks_info`); calling while playing may be unstable — the library may fall back to switchable track lists.
+
+```ts
+player.setSource("/path/to/video.mp4");
+player
+  .parseMedia()
+  .then(({ metadata, tracks, tracksCode, tracksMessage, length, info }) => {
+    console.log(metadata.title, tracks, length);
+  })
+  .catch((err) => console.error(err));
+```
+
+`tracks` lists streams in the file (including `width`/`height` per video track); **which track is active** uses `getVideoTrack()` / `getAudioTrack()` / `getSubtitleTrack()` (below).
+
+**Selected tracks** (libVLC track ids matching `get*Tracks()`; subtitles off = `-1`):
+
+```ts
+const videoId = player.getVideoTrack();
+const audioId = player.getAudioTrack();
+const subId = player.getSubtitleTrack(); // -1 = no subtitles
+
+const video = player.getVideoTracks().find((t) => t.id === videoId);
+const audio = player.getAudioTracks().find((t) => t.id === audioId);
+```
+
+While playing, `getVideoSize()` and `getFps()` return **current decoded** resolution and frame rate.
+
+After parse, `getMediaMetadataResult()` returns metadata; while playing, `getMediaTracksResult()` returns file streams.
+
+> [!WARNING]
+> **Do not read media track tables while paused** (can crash). Prefer during playback or after stop.
+
+```ts
+const { data: meta, code, message } = player.getMediaMetadataResult();
+const { data: tracks, code: tracksCode, message: tracksMessage } =
+  player.getMediaTracksResult();
+// If not parsed, `code` is MEDIA_NOT_PARSED; non-empty `code` means incomplete data — map `code` to your UI strings
+```
+
+##### `probeMedia()` — without loading into the player
+
+`parseMedia()` applies to the **current `setSource` media**. To pre-read duration/basic metadata for a playlist entry without switching playback, use package-level **`probeMedia()`**:
+
+- Does **not** change current source or start playback
+- Requires initialized libVLC (e.g. after `VlcPlayer.embed()`)
+- Returns `MediaProbeResult`: `parsed`, `length` (ms, 0 if unknown), `metadata` (`title` / `artist` / `album` / `genre`)
+- **No** track list, resolution, or fps — use `parseMedia()` or `getVideoSize()` / `getFps()` after playback
+
+```ts
+import { probeMedia } from "electron-vlc-player";
+
+// Probe playlist entries in the background (queue yourself to avoid blocking UI)
+const { parsed, length, metadata } = probeMedia("/path/to/video.mkv", 15_000);
+if (parsed && length > 0) {
+  console.log(metadata.title, length);
+}
+```
+
+### Utilities
+
+- `probeMedia(src, timeoutMs?)` — parse duration and basic metadata without loading into the player (requires init libVLC); returns `MediaProbeResult`
+- `probeDefaultVlcDir()` — optionally detect common VLC / libVLC install paths (`string | null`)
+- `resolveVlcDir(vlcDir)` — validate and normalize libVLC directory
+- `getHardwareAcceleration()` / `setHardwareAcceleration(mode)` — query or set process-wide `--avcodec-hw`
+- `normalizeHardwareAcceleration(mode)` — validate HW acceleration value
+- `probeDefaultFfmpegPath()` — optionally detect common ffmpeg paths and `PATH` (`string | null`)
+- `resolveFfmpegExecutable(path)` — validate ffmpeg executable
+- `getLibVlcVersion()` — queries libVLC version
+- `getBinding()` — returns the full `VlcBinding` (Low-level binding)
+
 ### Events
 
 ```ts
@@ -233,11 +315,21 @@ player.on("endReached", (ev) => console.log("ended", ev.time));
 
 Common events: `playing` | `paused` | `stopped` | `endReached` | `timeChanged` | `positionChanged` | `lengthChanged` | `buffering` | `error` | `playlistItemChanged` (see `VlcEventName`).
 
-### Control bar “page fullscreen” button
+#### Track changes (control bar audio/subtitle menus or `set*Track`):
 
-- Constructor option `pageFullscreenButton` (default `true`): set to `false` to hide the page-fullscreen button.
+```ts
+player.on("audioTrackChanged", ({ trackId }) => {
+  /* current audio track id */
+});
+player.on("videoTrackChanged", ({ trackId }) => {
+  /* current video track id */
+});
+player.on("subtitleTrackChanged", ({ trackId }) => {
+  /* trackId === -1 means subtitles off */
+});
+```
 
-#### Hardware acceleration
+### Hardware acceleration
 
 libVLC accepts **`--avcodec-hw=`** for decode hardware acceleration.
 
@@ -294,7 +386,32 @@ const player = new VlcPlayer({
 player.setLocale("ja");
 ```
 
-### Seek-bar hover preview
+### Control bar
+
+#### Playlist and previous/next controls
+
+The built-in control bar can show **Previous** / **Next** beside the play button.
+
+- Pass paths/URLs via constructor `playlist: string[]` or `setPlaylist(paths)` (independent of your own UI list — sync the same array to enable buttons).
+- Buttons appear only with **at least 2** items; hidden with 0–1 items.
+- `playPrevious()` / `playNext()` switch within the list; `hasPrevious()` / `hasNext()` indicate availability.
+- Default `autoAdvancePlaylist: true`: on `endReached`, plays the next item if any (`playNext()`).
+- **`playbackMode`** (default `default`): end-of-item behavior — `loop` (list), `repeat` (single item); use `getPlaybackMode()` / `setPlaybackMode()`.
+- Switching via control bar or API emits `playlistItemChanged` (`{ src, index }`) for title/sidebar updates; **the player already called `setSource` — listeners need not call it again**.
+
+```ts
+player.setPlaylist(["/a.mkv", "/b.mkv", "/c.mkv"]);
+player.setPlaybackMode("loop"); // or "repeat" | "default"
+player.on("playlistItemChanged", ({ src, index }) => {
+  console.log("now playing", index, src);
+});
+```
+
+#### page-fullscreen button
+
+- Constructor option `pageFullscreenButton` (default `true`): set to `false` to hide the page-fullscreen button.
+
+#### Seek-bar hover preview
 
 The control bar can offline-generate hover preview sprites for **local files** (similar to streaming sites). **Network URLs / streams** cannot generate or show hover previews.
 
@@ -366,40 +483,9 @@ player.on("seekPreviewError", (err) => console.error(err));
 player.generateSeekPreviewSprite(); // or use control bar button
 ```
 
-### Playlist and previous/next controls
+#### Custom overlay context menu
 
-The built-in control bar can show **Previous** / **Next** beside the play button.
-
-- Pass paths/URLs via constructor `playlist: string[]` or `setPlaylist(paths)` (independent of your own UI list — sync the same array to enable buttons).
-- Buttons appear only with **at least 2** items; hidden with 0–1 items.
-- `playPrevious()` / `playNext()` switch within the list; `hasPrevious()` / `hasNext()` indicate availability.
-- Default `autoAdvancePlaylist: true`: on `endReached`, plays the next item if any (`playNext()`).
-- **`playbackMode`** (default `default`): end-of-item behavior — `loop` (list), `repeat` (single item); use `getPlaybackMode()` / `setPlaybackMode()`.
-- Switching via control bar or API emits `playlistItemChanged` (`{ src, index }`) for title/sidebar updates; **the player already called `setSource` — listeners need not call it again**.
-
-```ts
-player.setPlaylist(["/a.mkv", "/b.mkv", "/c.mkv"]);
-player.setPlaybackMode("loop"); // or "repeat" | "default"
-player.on("playlistItemChanged", ({ src, index }) => {
-  console.log("now playing", index, src);
-});
-```
-
-Track changes (control bar audio/subtitle menus or `set*Track`):
-
-```ts
-player.on("audioTrackChanged", ({ trackId }) => {
-  /* current audio track id */
-});
-player.on("videoTrackChanged", ({ trackId }) => {
-  /* current video track id */
-});
-player.on("subtitleTrackChanged", ({ trackId }) => {
-  /* trackId === -1 means subtitles off */
-});
-```
-
-Custom overlay context menu (coordinates relative to overlay client area):
+Coordinates relative to overlay client area:
 
 ```ts
 import { Menu } from "electron";
@@ -411,87 +497,7 @@ player.on("overlayContextMenu", () => {
 });
 ```
 
-Use `parseMedia()` for metadata, tracks, and duration.
-
-> libVLC 3 reads track tables via `libvlc_media_tracks_get` (or legacy `libvlc_media_get_tracks_info`); calling while playing may be unstable — the library may fall back to switchable track lists.
-
-```ts
-player.setSource("/path/to/video.mp4");
-player
-  .parseMedia()
-  .then(({ metadata, tracks, tracksCode, tracksMessage, length, info }) => {
-    console.log(metadata.title, tracks, length);
-  })
-  .catch((err) => console.error(err));
-```
-
-`tracks` lists streams in the file (including `width`/`height` per video track); **which track is active** uses `getVideoTrack()` / `getAudioTrack()` / `getSubtitleTrack()` (below).
-
-**Selected tracks** (libVLC track ids matching `get*Tracks()`; subtitles off = `-1`):
-
-```ts
-const videoId = player.getVideoTrack();
-const audioId = player.getAudioTrack();
-const subId = player.getSubtitleTrack(); // -1 = no subtitles
-
-const video = player.getVideoTracks().find((t) => t.id === videoId);
-const audio = player.getAudioTracks().find((t) => t.id === audioId);
-```
-
-While playing, `getVideoSize()` and `getFps()` return **current decoded** resolution and frame rate.
-
-After parse, `getMediaMetadataResult()` returns metadata; while playing, `getMediaTracksResult()` returns file streams.
-
-> [!WARNING]
-> **Do not read media track tables while paused** (can crash). Prefer during playback or after stop.
-
-```ts
-const { data: meta, code, message } = player.getMediaMetadataResult();
-const { data: tracks, code: tracksCode, message: tracksMessage } =
-  player.getMediaTracksResult();
-// If not parsed, `code` is MEDIA_NOT_PARSED; non-empty `code` means incomplete data — map `code` to your UI strings
-```
-
-#### `probeMedia()` — without loading into the player
-
-`parseMedia()` applies to the **current `setSource` media**. To pre-read duration/basic metadata for a playlist entry without switching playback, use package-level **`probeMedia()`**:
-
-- Does **not** change current source or start playback
-- Requires initialized libVLC (e.g. after `VlcPlayer.embed()`)
-- Returns `MediaProbeResult`: `parsed`, `length` (ms, 0 if unknown), `metadata` (`title` / `artist` / `album` / `genre`)
-- **No** track list, resolution, or fps — use `parseMedia()` or `getVideoSize()` / `getFps()` after playback
-
-```ts
-import { probeMedia } from "electron-vlc-player";
-
-// Probe playlist entries in the background (queue yourself to avoid blocking UI)
-const { parsed, length, metadata } = probeMedia("/path/to/video.mkv", 15_000);
-if (parsed && length > 0) {
-  console.log(metadata.title, length);
-}
-```
-
-Low-level binding: `getBinding()` returns the full `VlcBinding`. `getLibVlcVersion()` queries libVLC version.
-
-`mediaOptions` example:
-
-```ts
-player.setSource("https://example.com/live.m3u8", {
-  mediaOptions: [":network-caching=3000"],
-});
-```
-
-### Utilities
-
-- `probeMedia(src, timeoutMs?)` — parse duration and basic metadata without loading into the player (requires init libVLC); returns `MediaProbeResult`
-- `probeDefaultVlcDir()` — optionally detect common VLC / libVLC install paths (`string | null`)
-- `resolveVlcDir(vlcDir)` — validate and normalize libVLC directory
-- `getHardwareAcceleration()` / `setHardwareAcceleration(mode)` — query or set process-wide `--avcodec-hw`
-- `normalizeHardwareAcceleration(mode)` — validate HW acceleration value
-- `probeDefaultFfmpegPath()` — optionally detect common ffmpeg paths and `PATH` (`string | null`)
-- `resolveFfmpegExecutable(path)` — validate ffmpeg executable
-
-### Built-in shortcuts
+## Built-in shortcuts
 
 When the overlay has focus, mouse and keyboard shortcuts are available.
 

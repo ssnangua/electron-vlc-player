@@ -221,6 +221,88 @@ try {
 
 常量：`VlcState`, `VlcNavigate`, `VlcRole`, `VlcEvent`, `VlcEventName`。
 
+#### `mediaOptions`
+
+```ts
+player.setSource("https://example.com/live.m3u8", {
+  mediaOptions: [":network-caching=3000"],
+});
+```
+
+#### 媒体元数据/轨信息/时长
+
+`parseMedia()` 可获取媒体元数据/轨信息/时长。
+
+> libVLC 3 通过 `libvlc_media_tracks_get`（或旧版 `libvlc_media_get_tracks_info`）读取轨表；播放中调用可能不稳定，库会在必要时退回可切换轨列表。
+
+```ts
+player.setSource("/path/to/video.mp4");
+player
+  .parseMedia()
+  .then(({ metadata, tracks, tracksCode, tracksMessage, length, info }) => {
+    console.log(metadata.title, tracks, length);
+  })
+  .catch((err) => console.error(err));
+```
+
+`tracks` 列出文件内各条流（含每条视频轨的 `width`/`height` 等）；**当前正在播放哪一条**用 `getVideoTrack()` / `getAudioTrack()` / `getSubtitleTrack()`（见下）。
+
+**当前选中轨道**（返回 libVLC 轨道 id，与 `get*Tracks()` 列表中的 `id` 对应；字幕关闭时为 `-1`）。
+
+```ts
+const videoId = player.getVideoTrack();
+const audioId = player.getAudioTrack();
+const subId = player.getSubtitleTrack(); // -1 表示未显示字幕
+
+const video = player.getVideoTracks().find((t) => t.id === videoId);
+const audio = player.getAudioTracks().find((t) => t.id === audioId);
+```
+
+播放中可用 `getVideoSize()`、`getFps()` 读取**当前解码画面**的分辨率/帧率。
+
+解析完成后，可用 `getMediaMetadataResult()` 读取媒体元数据，播放中可用 `getMediaTracksResult()` 读取文件内各条流。
+
+> [!WARNING]
+> **Paused 状态勿读 media 轨表**（易崩溃），完整轨表请在播放中或停止后获取。
+
+```ts
+const { data: meta, code, message } = player.getMediaMetadataResult();
+const { data: tracks, code: tracksCode, message: tracksMessage } =
+  player.getMediaTracksResult();
+// 未 parse 时 `code` 为 MEDIA_NOT_PARSED；`code` 非空表示结果可能不完整——请按 `code` 映射界面文案
+```
+
+##### `probeMedia()` — 不加载进播放器
+
+`parseMedia()` 针对**当前已 `setSource` 的媒体**；若只需在播放列表等场景预读时长/基础元数据，可用包级 **`probeMedia()`**：
+
+- **不**切换当前片源、**不**开始播放
+- 须已 init libVLC（例如 `VlcPlayer` 已 `embed()`）
+- 返回 `MediaProbeResult`：`parsed`、`length`（毫秒，0 为未知）、`metadata`（`title` / `artist` / `album` / `genre`）
+- **不含**轨列表、分辨率、帧率等；完整信息仍用 `parseMedia()` 或播放后 `getVideoSize()` / `getFps()`
+
+```ts
+import { probeMedia } from "electron-vlc-player";
+
+// 后台逐条 probe 播放列表条目（勿阻塞 UI 过久时可自行排队）
+const { parsed, length, metadata } = probeMedia("/path/to/video.mkv", 15_000);
+if (parsed && length > 0) {
+  console.log(metadata.title, length);
+}
+```
+
+### 工具
+
+- `probeMedia(src, timeoutMs?)` — 解析路径/URL 的时长与基础元数据，不加载进播放器（须已 init libVLC）；返回 `MediaProbeResult`
+- `probeDefaultVlcDir()` — 可选探测常见 VLC / libVLC 安装路径（返回 `string | null`）
+- `resolveVlcDir(vlcDir)` — 校验并规范化 libVLC 目录
+- `getHardwareAcceleration()` / `setHardwareAcceleration(mode)` — 查询或切换进程级 `--avcodec-hw`
+- `normalizeHardwareAcceleration(mode)` — 校验并规范化硬件加速取值
+- `probeDefaultFfmpegPath()` — 可选探测常见 ffmpeg 路径及 `PATH`（返回 `string | null`）
+- `resolveFfmpegExecutable(path)` — 校验 ffmpeg 可执行文件
+- `getLibVlcVersion()` — 查询 libVLC 版本
+- `getBinding()` — 返回完整 `VlcBinding`（底层绑定）
+
 ### 事件订阅
 
 ```ts
@@ -233,11 +315,21 @@ player.on("endReached", (ev) => console.log("结束", ev.time));
 
 常用事件：`playing` | `paused` | `stopped` | `endReached` | `timeChanged` | `positionChanged` | `lengthChanged` | `buffering` | `error` | `playlistItemChanged`（见 `VlcEventName`）。
 
-### 控制条「页面全屏」按钮
+#### 轨道切换（控制条「音轨」「字幕」弹层或 `set*Track` 均会触发）：
 
-- 构造选项 `pageFullscreenButton`（默认 `true`）：设为 `false` 时不显示「页面全屏」按钮。
+```ts
+player.on("audioTrackChanged", ({ trackId }) => {
+  /* 当前音轨 id */
+});
+player.on("videoTrackChanged", ({ trackId }) => {
+  /* 当前视频轨 id */
+});
+player.on("subtitleTrackChanged", ({ trackId }) => {
+  /* trackId === -1 表示关闭字幕 */
+});
+```
 
-#### 硬件加速
+### 硬件加速
 
 libVLC 支持通过参数 **`--avcodec-hw=`** 控制解码硬件加速。
 
@@ -294,7 +386,32 @@ const player = new VlcPlayer({
 player.setLocale("ja");
 ```
 
-### 进度条悬停预览
+### 控制条
+
+#### 播放列表与「播放上一个媒体 / 播放下一个媒体」
+
+内置控制条可在播放键两侧显示「播放上一个媒体」「播放下一个媒体」按钮。
+
+- 通过构造选项 `playlist: string[]` 或 `setPlaylist(paths)` 传入**路径/URL 列表**（与你在页面里自维护的 UI 列表互不冲突，可只把同一份路径数组同步给播放器以启用按钮）。
+- **至少 2 条**时控制条才显示这两个按钮；未配置或只有 1 条时隐藏。
+- `playPrevious()` / `playNext()` 在列表内切换媒体；`hasPrevious()` / `hasNext()` 表示是否可切换。
+- 默认 `autoAdvancePlaylist: true`：当前条目 `endReached` 且存在下一项时自动播放下一个媒体（`playNext()`）。
+- **`playbackMode`**（默认 `default`）：片尾行为——`loop` 列表循环、`repeat` 单曲循环；可用 `getPlaybackMode()` / `setPlaybackMode()` 动态切换。
+- 通过控制条或 API 切换媒体后会触发 `playlistItemChanged`（`{ src, index }`），便于更新标题、侧栏列表等；**播放器已 `setSource`，监听方无需再调一次 `setSource`**。
+
+```ts
+player.setPlaylist(["/a.mkv", "/b.mkv", "/c.mkv"]);
+player.setPlaybackMode("loop"); // 或 "repeat" | "default"
+player.on("playlistItemChanged", ({ src, index }) => {
+  console.log("now playing", index, src);
+});
+```
+
+#### 「页面全屏」按钮
+
+- 构造选项 `pageFullscreenButton`（默认 `true`）：设为 `false` 时不显示「页面全屏」按钮。
+
+#### 进度条悬停预览
 
 控制条支持为**本地文件**离线生成悬停预览雪碧图（类似视频网站）。**网络 URL / 流媒体**不支持生成与悬停预览图。
 
@@ -366,40 +483,9 @@ player.on("seekPreviewError", (err) => console.error(err));
 player.generateSeekPreviewSprite(); // 或由控制栏「生成预览」触发
 ```
 
-### 播放列表与控制条「播放上一个媒体 / 播放下一个媒体」
+#### 自定义 overlay 右键菜单
 
-内置控制条可在播放键两侧显示「播放上一个媒体」「播放下一个媒体」按钮。
-
-- 通过构造选项 `playlist: string[]` 或 `setPlaylist(paths)` 传入**路径/URL 列表**（与你在页面里自维护的 UI 列表互不冲突，可只把同一份路径数组同步给播放器以启用按钮）。
-- **至少 2 条**时控制条才显示这两个按钮；未配置或只有 1 条时隐藏。
-- `playPrevious()` / `playNext()` 在列表内切换媒体；`hasPrevious()` / `hasNext()` 表示是否可切换。
-- 默认 `autoAdvancePlaylist: true`：当前条目 `endReached` 且存在下一项时自动播放下一个媒体（`playNext()`）。
-- **`playbackMode`**（默认 `default`）：片尾行为——`loop` 列表循环、`repeat` 单曲循环；可用 `getPlaybackMode()` / `setPlaybackMode()` 动态切换。
-- 通过控制条或 API 切换媒体后会触发 `playlistItemChanged`（`{ src, index }`），便于更新标题、侧栏列表等；**播放器已 `setSource`，监听方无需再调一次 `setSource`**。
-
-```ts
-player.setPlaylist(["/a.mkv", "/b.mkv", "/c.mkv"]);
-player.setPlaybackMode("loop"); // 或 "repeat" | "default"
-player.on("playlistItemChanged", ({ src, index }) => {
-  console.log("now playing", index, src);
-});
-```
-
-轨道切换（控制条「音轨」「字幕」弹层或 `set*Track` 均会触发）：
-
-```ts
-player.on("audioTrackChanged", ({ trackId }) => {
-  /* 当前音轨 id */
-});
-player.on("videoTrackChanged", ({ trackId }) => {
-  /* 当前视频轨 id */
-});
-player.on("subtitleTrackChanged", ({ trackId }) => {
-  /* trackId === -1 表示关闭字幕 */
-});
-```
-
-自定义 overlay 右键菜单（坐标相对 overlay 客户区）：
+坐标相对 overlay 客户区：
 
 ```ts
 import { Menu } from "electron";
@@ -411,87 +497,7 @@ player.on("overlayContextMenu", () => {
 });
 ```
 
-`parseMedia()` 可获取媒体元数据/轨信息/时长。
-
-> libVLC 3 通过 `libvlc_media_tracks_get`（或旧版 `libvlc_media_get_tracks_info`）读取轨表；播放中调用可能不稳定，库会在必要时退回可切换轨列表。
-
-```ts
-player.setSource("/path/to/video.mp4");
-player
-  .parseMedia()
-  .then(({ metadata, tracks, tracksCode, tracksMessage, length, info }) => {
-    console.log(metadata.title, tracks, length);
-  })
-  .catch((err) => console.error(err));
-```
-
-`tracks` 列出文件内各条流（含每条视频轨的 `width`/`height` 等）；**当前正在播放哪一条**用 `getVideoTrack()` / `getAudioTrack()` / `getSubtitleTrack()`（见下）。
-
-**当前选中轨道**（返回 libVLC 轨道 id，与 `get*Tracks()` 列表中的 `id` 对应；字幕关闭时为 `-1`）。
-
-```ts
-const videoId = player.getVideoTrack();
-const audioId = player.getAudioTrack();
-const subId = player.getSubtitleTrack(); // -1 表示未显示字幕
-
-const video = player.getVideoTracks().find((t) => t.id === videoId);
-const audio = player.getAudioTracks().find((t) => t.id === audioId);
-```
-
-播放中可用 `getVideoSize()`、`getFps()` 读取**当前解码画面**的分辨率/帧率。
-
-解析完成后，可用 `getMediaMetadataResult()` 读取媒体元数据，播放中可用 `getMediaTracksResult()` 读取文件内各条流。
-
-> [!WARNING]
-> **Paused 状态勿读 media 轨表**（易崩溃），完整轨表请在播放中或停止后获取。
-
-```ts
-const { data: meta, code, message } = player.getMediaMetadataResult();
-const { data: tracks, code: tracksCode, message: tracksMessage } =
-  player.getMediaTracksResult();
-// 未 parse 时 `code` 为 MEDIA_NOT_PARSED；`code` 非空表示结果可能不完整——请按 `code` 映射界面文案
-```
-
-#### `probeMedia()` — 不加载进播放器
-
-`parseMedia()` 针对**当前已 `setSource` 的媒体**；若只需在播放列表等场景预读时长/基础元数据，可用包级 **`probeMedia()`**：
-
-- **不**切换当前片源、**不**开始播放
-- 须已 init libVLC（例如 `VlcPlayer` 已 `embed()`）
-- 返回 `MediaProbeResult`：`parsed`、`length`（毫秒，0 为未知）、`metadata`（`title` / `artist` / `album` / `genre`）
-- **不含**轨列表、分辨率、帧率等；完整信息仍用 `parseMedia()` 或播放后 `getVideoSize()` / `getFps()`
-
-```ts
-import { probeMedia } from "electron-vlc-player";
-
-// 后台逐条 probe 播放列表条目（勿阻塞 UI 过久时可自行排队）
-const { parsed, length, metadata } = probeMedia("/path/to/video.mkv", 15_000);
-if (parsed && length > 0) {
-  console.log(metadata.title, length);
-}
-```
-
-底层绑定：`getBinding()` 返回完整 `VlcBinding`。`getLibVlcVersion()` 查询 libVLC 版本。
-
-`mediaOptions` 示例：
-
-```ts
-player.setSource("https://example.com/live.m3u8", {
-  mediaOptions: [":network-caching=3000"],
-});
-```
-
-### 工具
-
-- `probeMedia(src, timeoutMs?)` — 解析路径/URL 的时长与基础元数据，不加载进播放器（须已 init libVLC）；返回 `MediaProbeResult`
-- `probeDefaultVlcDir()` — 可选探测常见 VLC / libVLC 安装路径（返回 `string | null`）
-- `resolveVlcDir(vlcDir)` — 校验并规范化 libVLC 目录
-- `getHardwareAcceleration()` / `setHardwareAcceleration(mode)` — 查询或切换进程级 `--avcodec-hw`
-- `normalizeHardwareAcceleration(mode)` — 校验并规范化硬件加速取值
-- `probeDefaultFfmpegPath()` — 可选探测常见 ffmpeg 路径及 `PATH`（返回 `string | null`）
-- `resolveFfmpegExecutable(path)` — 校验 ffmpeg 可执行文件
-
-### 内置快捷键
+## 内置快捷键
 
 overlay 获得焦点时，支持鼠标与键盘操作。
 
