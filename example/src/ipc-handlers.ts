@@ -102,10 +102,18 @@ export function registerIpc(): void {
     const p = appState.player;
     if (p?.isEmbedded()) p.hideOverlay();
     try {
+      const properties: Array<'openDirectory' | 'treatPackageAsDirectory'> = [
+        'openDirectory',
+      ];
+      if (process.platform === 'darwin') {
+        properties.push('treatPackageAsDirectory');
+      }
       const result = await dialog.showOpenDialog(win, {
         title: ui.pickVlcDirTitle,
-        properties: ["openDirectory"],
-        defaultPath: appState.vlcDir,
+        properties,
+        defaultPath:
+          appState.vlcDir.trim() ||
+          (process.platform === 'darwin' ? '/Applications' : undefined),
       });
       return result.canceled || !result.filePaths[0] ? null : result.filePaths[0];
     } finally {

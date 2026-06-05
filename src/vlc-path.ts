@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 const LIBVLC_NAMES: Record<string, string[]> = {
@@ -19,7 +20,10 @@ function libVlcProbeCandidates(): string[] {
       ];
     }
     case 'darwin':
-      return ['/Applications/VLC.app/Contents/MacOS'];
+      return [
+        '/Applications/VLC.app/Contents/MacOS',
+        path.join(os.homedir(), 'Applications', 'VLC.app', 'Contents', 'MacOS'),
+      ];
     case 'linux':
       return [
         '/usr/lib/x86_64-linux-gnu',
@@ -38,6 +42,20 @@ function hasLibVlcAt(dir: string): boolean {
   return candidates.some((name) => fs.existsSync(path.join(dir, name)));
 }
 
+/** macOS: accept VLC.app bundle paths and resolve to Contents/MacOS. */
+function vlcDirResolveCandidates(normalized: string): string[] {
+  const out: string[] = [normalized];
+  if (process.platform !== 'darwin') return out;
+
+  if (normalized.endsWith('.app')) {
+    out.push(path.join(normalized, 'Contents', 'MacOS'));
+  }
+  if (normalized.endsWith(`${path.sep}Contents`)) {
+    out.push(path.join(normalized, 'MacOS'));
+  }
+  return [...new Set(out)];
+}
+
 /**
  * 校验并规范化 libVLC 根目录（须包含平台对应的 libvlc 库文件）。
  * 不会自动探测；可选用 {@link probeDefaultVlcDir} 探测常见安装路径后再传入 `vlcDir`。
@@ -54,10 +72,12 @@ export function resolveVlcDir(vlcDir: string): string {
     throw new Error(`Unsupported platform for libVLC: ${process.platform}`);
   }
 
-  for (const name of candidates) {
-    const lib = path.join(normalized, name);
-    if (fs.existsSync(lib)) {
-      return normalized;
+  for (const dir of vlcDirResolveCandidates(normalized)) {
+    for (const name of candidates) {
+      const lib = path.join(dir, name);
+      if (fs.existsSync(lib)) {
+        return dir;
+      }
     }
   }
 

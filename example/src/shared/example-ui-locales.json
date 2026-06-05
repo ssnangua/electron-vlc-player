@@ -1,7 +1,7 @@
 {
   "en": {
     "openMedia": "Open media",
-    "pickVlcDirTitle": "Select VLC directory",
+    "pickVlcDirTitle": "Select VLC.app or libVLC folder",
     "vlcDirPlaceholder": "libVLC root directory",
     "pickFfmpegTitle": "Select FFmpeg path",
     "ffmpegPlaceholder": "FFmpeg executable (optional)",
@@ -64,7 +64,7 @@
   },
   "zh-CN": {
     "openMedia": "打开媒体",
-    "pickVlcDirTitle": "选择 VLC 目录",
+    "pickVlcDirTitle": "选择 VLC.app 或 libVLC 目录",
     "vlcDirPlaceholder": "libVLC 根目录",
     "pickFfmpegTitle": "选择 FFmpeg 路径",
     "ffmpegPlaceholder": "FFmpeg 可执行文件（可选）",
