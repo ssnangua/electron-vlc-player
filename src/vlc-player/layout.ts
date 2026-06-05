@@ -222,10 +222,32 @@ export class LayoutController {
   }
 
   /**
-   * 全屏与窗口统一：与 overlay 相同的 dipToScreenRect + ScreenToClient。
+   * Windows：`screen.dipToScreenRect`（DIP → 物理像素）。
+   * macOS/Linux：Electron 屏幕 DIP 与原生屏幕坐标一致，直接取整（无 dipToScreenRect API）。
+   */
+  dipScreenRectToNativeScreen(dipScreen: Rectangle): Rectangle {
+    if (process.platform === 'win32') {
+      return screen.dipToScreenRect(this.host.window, dipScreen);
+    }
+    return {
+      x: Math.round(dipScreen.x),
+      y: Math.round(dipScreen.y),
+      width: Math.round(dipScreen.width),
+      height: Math.round(dipScreen.height),
+    };
+  }
+
+  /** macOS NSView 使用点坐标（与 Electron DIP 一致），不用 Windows 的屏幕映射路径。 */
+  usesClientNativeBounds(): boolean {
+    return process.platform === 'darwin';
+  }
+
+  /**
+   * 全屏与窗口统一：屏幕 DIP → 原生 setBoundsFromScreen 坐标（仅 Windows 等）。
    * 仅当 getContentBounds 陈旧且无 chrome 缓存时，才退回客户区算法。
    */
   shouldUseNativeScreenMapping(): boolean {
+    if (this.usesClientNativeBounds()) return false;
     if (this.host.window.isDestroyed()) return false;
     const win = this.host.window.getBounds();
     const content = this.host.window.getContentBounds();
@@ -236,28 +258,35 @@ export class LayoutController {
     );
   }
 
-  /** 客户区物理像素（仅作校验 / 退路，含 WebContentsView 偏移） */
+  /** 客户区原生坐标（含 WebContentsView 偏移）。macOS 为点/DIP；Windows 为物理像素。 */
   resolveNativeBoundsClientPhysical(): ContainerRect {
     const dip = this.resolveContainerBoundsDip();
     const page = this.resolvePageView()?.getBounds() ?? { x: 0, y: 0 };
+    const client = {
+      x: Math.round(page.x + dip.x),
+      y: Math.round(page.y + dip.y),
+      width: Math.round(dip.width),
+      height: Math.round(dip.height),
+    };
+    if (this.usesClientNativeBounds()) return client;
     const scale = this.getDpiScale();
     return {
-      x: Math.round((page.x + dip.x) * scale),
-      y: Math.round((page.y + dip.y) * scale),
-      width: Math.round(dip.width * scale),
-      height: Math.round(dip.height * scale),
+      x: Math.round(client.x * scale),
+      y: Math.round(client.y * scale),
+      width: Math.round(client.width * scale),
+      height: Math.round(client.height * scale),
     };
   }
 
-  /** 与 overlay 相同的物理屏幕矩形 */
+  /** 与 overlay 相同的原生屏幕矩形（供 setBoundsFromScreen） */
   resolveNativeBoundsScreenPhysical(): ContainerRect {
     const dipScreen = this.resolveOverlayScreenBounds();
-    const physical = screen.dipToScreenRect(this.host.window, dipScreen);
+    const physical = this.dipScreenRectToNativeScreen(dipScreen);
     return {
-      x: Math.round(physical.x),
-      y: Math.round(physical.y),
-      width: Math.round(physical.width),
-      height: Math.round(physical.height),
+      x: physical.x,
+      y: physical.y,
+      width: physical.width,
+      height: physical.height,
     };
   }
 
@@ -329,20 +358,33 @@ export class LayoutController {
 
   /** 按快照直接恢复原生层与 overlay 位置 */
   applyLayoutFromSnapshot(): boolean {
-    const dipScreen = this.resolveOverlayScreenBoundsFromSnapshot();
-    if (!dipScreen || this.host.playerId < 0) return false;
+    if (this.host.playerId < 0) return false;
 
-    const physical = screen.dipToScreenRect(this.host.window, dipScreen);
-    getBinding().setBoundsFromScreen(
-      this.host.playerId,
-      Math.round(physical.x),
-      Math.round(physical.y),
-      Math.round(physical.width),
-      Math.round(physical.height),
-    );
-    this.lastNativeBounds = this.resolveNativeBoundsClientPhysical();
+    if (this.usesClientNativeBounds()) {
+      const client = this.resolveNativeBoundsClientPhysical();
+      getBinding().setBounds(
+        this.host.playerId,
+        client.x,
+        client.y,
+        client.width,
+        client.height,
+      );
+      this.lastNativeBounds = client;
+    } else {
+      const dipScreen = this.resolveOverlayScreenBoundsFromSnapshot();
+      if (!dipScreen) return false;
+      const physical = this.dipScreenRectToNativeScreen(dipScreen);
+      getBinding().setBoundsFromScreen(
+        this.host.playerId,
+        Math.round(physical.x),
+        Math.round(physical.y),
+        Math.round(physical.width),
+        Math.round(physical.height),
+      );
+      this.lastNativeBounds = this.resolveNativeBoundsClientPhysical();
+    }
+
     this.host.raiseNativeLayer();
-
     this.host.overlayWindow.syncOverlayBounds();
     return true;
   }
@@ -475,10 +517,12 @@ export class LayoutController {
     );
   }
 
-  /** 客户区物理像素是否明显超出当前窗口（防止复用全屏缓存） */
+  /** 客户区原生坐标是否明显超出当前窗口（防止复用全屏缓存） */
   nativeClientBoundsFitContent(bounds: ContainerRect): boolean {
     const [cw, ch] = this.host.window.getContentSize();
-    const scale = screen.getDisplayMatching(this.host.window.getBounds()).scaleFactor;
+    const scale = this.usesClientNativeBounds()
+      ? 1
+      : screen.getDisplayMatching(this.host.window.getBounds()).scaleFactor;
     const maxW = Math.round(cw * scale) + 16;
     const maxH = Math.round(ch * scale) + 16;
     return (

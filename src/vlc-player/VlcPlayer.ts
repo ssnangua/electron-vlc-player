@@ -209,8 +209,8 @@ export class VlcPlayer extends LibVLC implements VlcPlayerHost {
     this.overlayWindow.showOverlay();
   }
 
-  focusOverlay(): void {
-    this.overlayWindow.focusOverlay();
+  focusOverlay(options?: { stealWindowFocus?: boolean }): void {
+    this.overlayWindow.focusOverlay(options);
   }
 
   openOverlayDevTools(): void {
@@ -611,7 +611,11 @@ export class VlcPlayer extends LibVLC implements VlcPlayerHost {
     this.window.on('minimize', () => this.overlayWindow.updateOverlayPresence());
     this.window.on('restore', () => this.overlayWindow.updateOverlayPresence());
     this.window.on('hide', () => this.overlayWindow.updateOverlayPresence());
-    this.window.on('focus', () => this.overlayWindow.updateOverlayPresence());
+    this.window.on('focus', () => {
+      this.overlayWindow.updateOverlayPresence();
+      this.overlayWindow.onMainWindowFocusForMac();
+    });
+    this.window.on('blur', () => this.overlayWindow.onMainWindowBlurForMac());
     this.window.on('show', () => this.overlayWindow.updateOverlayPresence());
     this.window.on('move', () => this.layout.onMainWindowMoved());
 

@@ -25,6 +25,7 @@
     "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && node scripts/gen-overlay-locale.cjs && tsc -p tsconfig.json",
     "install": "node scripts/install.js",
     "rebuild": "node-gyp rebuild",
+    "native:ide": "node scripts/gen-clangd.cjs",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {

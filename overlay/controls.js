@@ -242,6 +242,8 @@ function updateVolumeMutedAppearance() {
 let controlsIdleTimer = null;
 let pointerInOverlay = false;
 let pointerOnControls = false;
+/** macOS 应用失焦时由主进程轮询独占 hover，忽略 DOM mouseenter/leave */
+let domPointerHoverEnabled = true;
 let fsTitleFullScreen = false;
 let fsTitleMediaLabel = '';
 const rootEl = document.getElementById('root');
@@ -330,6 +332,7 @@ function shouldTreatPointerAsLeftOverlay(relatedTarget) {
 }
 
 function onOverlayPointerActivity() {
+  if (!domPointerHoverEnabled) return;
   if (!pointerInOverlay) return;
   showControlsBar();
   if (!pointerOnControls) {
@@ -1500,6 +1503,7 @@ hitArea.addEventListener('contextmenu', onContextMenu);
 controlsEl.addEventListener('contextmenu', onContextMenu);
 
 function onPointerEnterOverlay() {
+  if (!domPointerHoverEnabled) return;
   if (pointerInOverlay) return;
   pointerInOverlay = true;
   updateOverlayCursor();
@@ -1507,6 +1511,7 @@ function onPointerEnterOverlay() {
 }
 
 function onPointerLeaveOverlay() {
+  if (!domPointerHoverEnabled) return;
   pointerInOverlay = false;
   pointerOnControls = false;
   if (seeking) {
@@ -1529,6 +1534,32 @@ controlsEl.addEventListener('mouseenter', onControlsPointerEnter);
 controlsEl.addEventListener('mouseleave', onControlsPointerLeave);
 
 document.addEventListener('mousemove', onOverlayPointerActivity);
+
+window.addEventListener('evp:pointer-mode', (e) => {
+  domPointerHoverEnabled = !e.detail?.poll;
+});
+
+window.addEventListener('evp:pointer-hover', (e) => {
+  if (e.detail?.inside) {
+    pointerInOverlay = true;
+    updateOverlayCursor();
+    showControlsBar();
+    if (!pointerOnControls) scheduleHideControlsBar();
+    return;
+  }
+  pointerInOverlay = false;
+  pointerOnControls = false;
+  if (seeking) {
+    showControlsBar();
+    return;
+  }
+  hideControlsBarNow();
+});
+window.addEventListener('evp:pointer-activity', () => {
+  if (!pointerInOverlay) return;
+  showControlsBar();
+  if (!pointerOnControls) scheduleHideControlsBar();
+});
 
 api.onState((state) => {
   lastOverlayState = state;

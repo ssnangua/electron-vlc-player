@@ -11,6 +11,22 @@ ipcRenderer.on('evp:focus-overlay', () => {
   if (hit) hit.focus({ preventScroll: true });
 });
 
+ipcRenderer.on('evp:pointer-hover', (_e, payload) => {
+  window.dispatchEvent(
+    new CustomEvent('evp:pointer-hover', { detail: payload }),
+  );
+});
+
+ipcRenderer.on('evp:pointer-activity', () => {
+  window.dispatchEvent(new CustomEvent('evp:pointer-activity'));
+});
+
+ipcRenderer.on('evp:pointer-mode', (_e, payload) => {
+  window.dispatchEvent(
+    new CustomEvent('evp:pointer-mode', { detail: payload }),
+  );
+});
+
 function collectDroppedPaths(dataTransfer) {
   const paths = [];
   for (const file of dataTransfer.files) {

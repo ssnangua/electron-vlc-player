@@ -98,7 +98,9 @@ npm run smoke-play -- "C:\path\to\video.mkv"
 
 ## VLC 路径
 
-启动时 example 调用库提供的 **`probeDefaultVlcDir()`** 探测本机 VLC；未检测到可在顶栏「选择 VLC 目录」手动指定（仍通过 `resolveVlcDir` 校验）。
+启动时 example 调用库提供的 **`probeDefaultVlcDir()`** 探测本机 VLC；未检测到可在顶栏「选择 VLC 目录」手动指定（仍通过 `resolveVlcDir` 校验）。macOS 上可选 `/Applications/VLC.app` 或 `Contents/MacOS`（VLC 3.0.x 的 dylib 常在 `MacOS/lib/`，库会自动解析到正确 `vlcDir`）。
+
+在仓库根目录开发时请先 **`npm run link`** 再 **`npm run rebuild`**，否则 example 可能仍使用 npm 缓存的旧版库。
 
 ## 进度条悬停预览（ffmpeg）
 

@@ -439,6 +439,20 @@ static Napi::Value SetPlayerOffscreenEmbed(const Napi::CallbackInfo &info) {
   return env.Undefined();
 }
 
+static Napi::Value IsScreenPointOverWindow(const Napi::CallbackInfo &info) {
+  Napi::Env env = info.Env();
+  if (info.Length() < 3 || !info[0].IsBuffer() || !info[1].IsNumber() || !info[2].IsNumber()) {
+    Napi::TypeError::New(env, "Expected (handleBuffer, screenX, screenY)")
+        .ThrowAsJavaScriptException();
+    return env.Null();
+  }
+  const auto buf = info[0].As<Napi::Buffer<uint8_t>>();
+  const int x = info[1].As<Napi::Number>().Int32Value();
+  const int y = info[2].As<Napi::Number>().Int32Value();
+  const bool ok = PlatformIsScreenPointOverWindow(buf.Data(), buf.Length(), x, y);
+  return Napi::Boolean::New(env, ok);
+}
+
 static Napi::Object InitModule(Napi::Env env, Napi::Object exports) {
   exports.Set("init", Napi::Function::New(env, Init));
   exports.Set("getHardwareAcceleration", Napi::Function::New(env, GetHardwareAcceleration));
@@ -452,6 +466,7 @@ static Napi::Object InitModule(Napi::Env env, Napi::Object exports) {
   exports.Set("setPlayerWindowVisible", Napi::Function::New(env, SetPlayerWindowVisible));
   exports.Set("setPlayerStackBelow", Napi::Function::New(env, SetPlayerStackBelow));
   exports.Set("setPlayerOffscreenEmbed", Napi::Function::New(env, SetPlayerOffscreenEmbed));
+  exports.Set("isScreenPointOverWindow", Napi::Function::New(env, IsScreenPointOverWindow));
   exports.Set("play", Napi::Function::New(env, Play));
   exports.Set("pause", Napi::Function::New(env, Pause));
   exports.Set("togglePause", Napi::Function::New(env, TogglePause));

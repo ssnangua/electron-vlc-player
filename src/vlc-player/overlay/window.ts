@@ -43,8 +43,110 @@ export class OverlayWindowController {
 
   readonly tracksMenu: OverlayTracksMenuController;
 
+  /** macOS：非焦点子窗常收不到 hover，主进程轮询光标补发 */
+  private overlayPointerPollTimer: NodeJS.Timeout | null = null;
+  private overlayPointerInside = false;
+  private overlayPointerPollLast = { x: -1, y: -1 };
+
   constructor(private readonly host: VlcPlayerHost) {
     this.tracksMenu = new OverlayTracksMenuController(host);
+  }
+
+  private static readonly OVERLAY_POINTER_POLL_MS = 100;
+
+  /** macOS 带 parent 的子窗默认不收 hover；抬高 window level（Electron #44150）。 */
+  private applyMacOverlayWindowLevel(): void {
+    if (process.platform !== 'darwin' || !this.overlay || this.overlay.isDestroyed()) {
+      return;
+    }
+    this.overlay.setAlwaysOnTop(true, 'pop-up-menu');
+  }
+
+  private startOverlayPointerTracking(): void {
+    if (process.platform !== 'darwin') return;
+    if (this.overlayPointerPollTimer) return;
+    this.overlayPointerPollTimer = setInterval(
+      () => this.pollOverlayPointer(),
+      OverlayWindowController.OVERLAY_POINTER_POLL_MS,
+    );
+  }
+
+  private stopOverlayPointerTracking(): void {
+    if (this.overlayPointerPollTimer) {
+      clearInterval(this.overlayPointerPollTimer);
+      this.overlayPointerPollTimer = null;
+    }
+    this.overlayPointerInside = false;
+    this.overlayPointerPollLast = { x: -1, y: -1 };
+  }
+
+  /** 主窗仍可见即可轮询；勿依赖 overlay.isVisible()（macOS 后台/失焦时常误报）。 */
+  private overlayPointerPollAllowed(): boolean {
+    if (this.host.destroyed || this.host.window.isDestroyed()) return false;
+    if (!this.overlay || this.overlay.isDestroyed()) return false;
+    if (!this.shouldShowOverlay() || this.overlayManualHideDepth > 0) return false;
+    return this.host.window.isVisible() && !this.host.window.isMinimized();
+  }
+
+  /** 应用失焦时：须在 stage 矩形内且前台窗口为本应用 Overlay（排除访达等遮挡）。 */
+  private isCursorOverOverlayStage(cursor: { x: number; y: number }): boolean {
+    const bounds = this.host.layout.resolveOverlayScreenBounds();
+    const inRect =
+      cursor.x >= bounds.x &&
+      cursor.x < bounds.x + bounds.width &&
+      cursor.y >= bounds.y &&
+      cursor.y < bounds.y + bounds.height;
+    if (!inRect) return false;
+    if (process.platform !== 'darwin' || this.host.window.isFocused()) return true;
+
+    const overlay = this.overlay;
+    if (!overlay || overlay.isDestroyed()) return false;
+    return getBinding().isScreenPointOverWindow(
+      overlay.getNativeWindowHandle(),
+      cursor.x,
+      cursor.y,
+    );
+  }
+
+  private syncOverlayPointerMode(): void {
+    if (process.platform !== 'darwin' || !this.overlay || this.overlay.isDestroyed()) return;
+    const poll = !this.host.window.isDestroyed() && !this.host.window.isFocused();
+    this.overlay.webContents.send('evp:pointer-mode', { poll });
+    if (!poll) {
+      this.overlayPointerInside = false;
+      this.overlayPointerPollLast = { x: -1, y: -1 };
+    }
+  }
+
+  private pollOverlayPointer(): void {
+    if (!this.overlayPointerPollAllowed()) return;
+    const overlay = this.overlay;
+    if (!overlay || overlay.isDestroyed()) return;
+
+    const cursor = screen.getCursorScreenPoint();
+    const inside = this.isCursorOverOverlayStage(cursor);
+
+    if (!inside) {
+      this.overlayPointerPollLast = { x: -1, y: -1 };
+      if (!this.overlayPointerInside) return;
+      this.overlayPointerInside = false;
+      overlay.webContents.send('evp:pointer-hover', { inside: false });
+      return;
+    }
+
+    const moved =
+      cursor.x !== this.overlayPointerPollLast.x ||
+      cursor.y !== this.overlayPointerPollLast.y;
+    this.overlayPointerPollLast = { x: cursor.x, y: cursor.y };
+
+    if (!this.overlayPointerInside) {
+      this.overlayPointerInside = true;
+      overlay.webContents.send('evp:pointer-hover', { inside: true });
+      return;
+    }
+    if (moved) {
+      overlay.webContents.send('evp:pointer-activity');
+    }
   }
 
   overlayIpcAllowed(event: IpcMainEvent): boolean {
@@ -70,6 +172,7 @@ export class OverlayWindowController {
     this.overlayManualHideDepth++;
     if (!first) return;
     if (this.overlay && !this.overlay.isDestroyed() && this.overlay.isVisible()) {
+      this.stopOverlayPointerTracking();
       this.overlay.hide();
     }
     if (!this.host.window.isDestroyed()) this.host.window.focus();
@@ -84,10 +187,15 @@ export class OverlayWindowController {
     }
   }
 
-  /** 将键盘焦点交还给 overlay（`#hit-area`），便于快捷键与滚轮调音量。 */
-  focusOverlay(): void {
+  /**
+   * 将键盘焦点交还给 overlay（`#hit-area`），便于快捷键与滚轮调音量。
+   * 默认不调用 `overlay.focus()`，避免 macOS 子窗抢焦点导致主窗失活（如播放列表切歌）。
+   */
+  focusOverlay(options?: { stealWindowFocus?: boolean }): void {
     if (this.host.destroyed || !this.host.showControls || this.host.playerId < 0) return;
     if (this.overlayManualHideDepth > 0) return;
+
+    const stealWindowFocus = options?.stealWindowFocus === true;
 
     this.host.ensureOverlay();
     this.updateOverlayPresence();
@@ -100,8 +208,14 @@ export class OverlayWindowController {
 
     this.syncOverlayBounds();
     if (!this.overlay.isVisible()) {
-      this.overlay.show();
+      if (stealWindowFocus) {
+        this.overlay.show();
+      } else {
+        this.overlay.showInactive();
+      }
     }
+    if (!stealWindowFocus) return;
+
     this.overlay.focus();
     if (this.overlay.webContents.isLoading()) {
       this.overlay.webContents.once('did-finish-load', focusHitArea);
@@ -147,9 +261,11 @@ export class OverlayWindowController {
     if (!this.overlay || this.overlay.isDestroyed() || !this.shouldShowOverlay()) return;
     if (!this.overlay.isVisible()) {
       this.syncOverlayBounds();
+      this.applyMacOverlayWindowLevel();
       this.overlay.showInactive();
       this.sendOverlayRegister();
     }
+    this.startOverlayPointerTracking();
   }
 
   /** 有媒体后再创建控制层，避免空闲时多开一个 WebContents 拖慢主页面 */
@@ -183,14 +299,23 @@ export class OverlayWindowController {
       skipTaskbar: true,
       show: false,
       focusable: true,
+      ...(process.platform === 'darwin'
+        ? { acceptFirstMouse: true, type: 'panel' as const }
+        : {}),
       webPreferences: {
         preload: path.join(overlayDir, 'preload.js'),
         contextIsolation: true,
         nodeIntegration: false,
+        // macOS 整个应用失焦时默认会节流后台 WebContents，导致 hover IPC 无响应
+        backgroundThrottling: process.platform !== 'darwin',
       },
     });
 
+    this.applyMacOverlayWindowLevel();
     this.overlay.loadFile(path.join(overlayDir, 'controls.html'));
+    if (process.platform === 'darwin') {
+      this.overlay.webContents.setBackgroundThrottling(false);
+    }
     this.overlay.webContents.on('before-input-event', (_event, input) => {
       if (input.type !== 'keyDown' || input.key !== 'Escape') return;
       this.host.handleEscapeFullscreen();
@@ -202,6 +327,7 @@ export class OverlayWindowController {
     });
     this.overlay.webContents.once('did-finish-load', () => {
       this.sendOverlayRegister();
+      this.syncOverlayPointerMode();
       this.updateOverlayPresence();
       this.host.pushState();
     });
@@ -239,11 +365,27 @@ export class OverlayWindowController {
     if (!this.overlay || this.overlay.isDestroyed()) return;
 
     if (!this.shouldShowOverlay() || this.overlayManualHideDepth > 0) {
+      this.stopOverlayPointerTracking();
       this.overlay.hide();
       return;
     }
 
     this.ensureOverlayShown();
+  }
+
+  /** macOS：应用失焦（如切到访达）时保持 overlay 可见并继续光标轮询 */
+  onMainWindowBlurForMac(): void {
+    if (process.platform !== 'darwin' || this.host.destroyed) return;
+    if (!this.shouldShowOverlay()) return;
+    this.ensureOverlayShown();
+    this.syncOverlayPointerMode();
+    this.startOverlayPointerTracking();
+  }
+
+  /** macOS：应用重新获得焦点时交还 DOM hover，并清空轮询状态 */
+  onMainWindowFocusForMac(): void {
+    if (process.platform !== 'darwin' || this.host.destroyed) return;
+    this.syncOverlayPointerMode();
   }
 
   /** 拖动/移动主窗口时同步 overlay（不依赖 ResizeObserver / paint） */
@@ -273,6 +415,7 @@ export class OverlayWindowController {
   }
 
   destroyOverlay(): void {
+    this.stopOverlayPointerTracking();
     if (this.overlay && !this.overlay.isDestroyed()) {
       this.overlay.close();
     }
@@ -726,7 +869,7 @@ export class OverlayWindowController {
       });
     } finally {
       this.showOverlay();
-      this.focusOverlay();
+      this.focusOverlay({ stealWindowFocus: true });
     }
     if (result.canceled || !result.filePaths[0]) return;
     const filePath = result.filePaths[0];

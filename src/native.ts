@@ -87,6 +87,7 @@ export interface VlcBinding {
   setPlayerWindowVisible(id: number, visible: boolean): void;
   setPlayerStackBelow(id: number, below: boolean): void;
   setPlayerOffscreenEmbed(id: number, offscreen: boolean): void;
+  isScreenPointOverWindow(handle: Buffer, screenX: number, screenY: number): boolean;
 
   play(id: number): void;
   pause(id: number): void;

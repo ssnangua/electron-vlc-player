@@ -247,7 +247,6 @@ export function registerIpc(): void {
           const p = requirePlayer();
           p.setSource(filePath);
           p.notifyLayoutChange();
-          p.focusOverlay();
         } catch (err) {
           console.error("[example] play failed:", err);
         }

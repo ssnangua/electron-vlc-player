@@ -167,4 +167,9 @@ void PlatformSetChildOffscreen(PlayerState *state, bool offscreen) {
   state->embed_offscreen = offscreen;
 }
 
+bool PlatformIsScreenPointOverWindow(const uint8_t * /*handle_buf*/, size_t /*handle_len*/,
+                                     int /*screenX*/, int /*screenY*/) {
+  return true;
+}
+
 #endif

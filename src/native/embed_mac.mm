@@ -38,6 +38,23 @@ static void ResizeChildView(NSView *parent, NSView *child, int x, int y, int wid
   [child setNeedsDisplay:YES];
 }
 
+static NSPoint ElectronScreenPointToCocoa(NSPoint electronPoint) {
+  NSScreen *primary = [[NSScreen screens] firstObject];
+  if (!primary) return electronPoint;
+  const CGFloat primaryH = NSHeight([primary frame]);
+  return NSMakePoint(electronPoint.x, primaryH - electronPoint.y);
+}
+
+/** Electron 屏幕坐标为左上角原点；Cocoa convertRectFromScreen 为左下角原点。 */
+static NSRect ElectronScreenRectToCocoa(NSRect electronRect) {
+  NSScreen *primary = [[NSScreen screens] firstObject];
+  if (!primary) return electronRect;
+  const CGFloat primaryH = NSHeight([primary frame]);
+  return NSMakeRect(electronRect.origin.x,
+                    primaryH - electronRect.origin.y - electronRect.size.height,
+                    electronRect.size.width, electronRect.size.height);
+}
+
 static void ResizeChildFromScreen(NSView *parent, NSView *child, int screenX, int screenY,
                                   int screenW, int screenH, int *outX, int *outY, int *outW,
                                   int *outH) {
@@ -45,8 +62,8 @@ static void ResizeChildFromScreen(NSView *parent, NSView *child, int screenX, in
   NSWindow *window = parent.window;
   if (!window) return;
 
-  const NSRect screenRect =
-      NSMakeRect(screenX, screenY, screenW, screenH);
+  const NSRect screenRect = ElectronScreenRectToCocoa(
+      NSMakeRect(screenX, screenY, screenW, screenH));
   NSRect windowRect = [window convertRectFromScreen:screenRect];
   NSRect viewRect = [parent convertRect:windowRect fromView:nil];
 
@@ -131,6 +148,21 @@ void PlatformSetChildStackBelow(PlayerState *state, bool below) {
 void PlatformSetChildOffscreen(PlayerState *state, bool offscreen) {
   if (!state) return;
   state->embed_offscreen = offscreen;
+}
+
+bool PlatformIsScreenPointOverWindow(const uint8_t *handle_buf, size_t handle_len, int screenX,
+                                     int screenY) {
+  NSView *view = BufferToView(handle_buf, handle_len);
+  if (!view) return false;
+  NSWindow *window = view.window;
+  if (!window) return false;
+  const NSPoint cocoaPoint =
+      ElectronScreenPointToCocoa(NSMakePoint(static_cast<CGFloat>(screenX),
+                                             static_cast<CGFloat>(screenY)));
+  const NSInteger topWindowNumber =
+      [NSWindow windowNumberAtPoint:cocoaPoint belowWindowWithWindowNumber:0];
+  if (topWindowNumber <= 0) return false;
+  return static_cast<NSInteger>(window.windowNumber) == topWindowNumber;
 }
 
 #endif

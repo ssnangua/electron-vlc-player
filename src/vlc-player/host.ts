@@ -82,7 +82,7 @@ export interface VlcPlayerHost {
   scheduleLayoutSync(immediate?: boolean): void;
   hideOverlay(): void;
   showOverlay(): void;
-  focusOverlay(): void;
+  focusOverlay(options?: { stealWindowFocus?: boolean }): void;
   cancelOverlaySeekSession(): void;
   cancelSeekPreviewSprite(): void;
   resetOverlayStateCache(): void;

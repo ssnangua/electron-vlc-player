@@ -121,14 +121,17 @@ new VlcPlayer({ window: win, container: "#player", vlcDir });
 
 #### macOS
 
-通常为 VLC.app 内的 `MacOS` 目录，例如：
+`vlcDir` 指向 **`Contents/MacOS`**（与 `plugins/` 同级）。VLC 3.0.x 安装包常把 dylib 放在 `lib/` 子目录，库会自动识别；`probeDefaultVlcDir()` / `resolveVlcDir()` 也接受 `VLC.app`、`MacOS` 或 `MacOS/lib` 路径。
 
 ```text
 /Applications/VLC.app/Contents/MacOS/
-  libvlc.dylib
-  libvlccore.dylib
+  lib/
+    libvlc.dylib
+    libvlccore.dylib
   plugins/
 ```
+
+（部分旧版布局也可能将 `libvlc.dylib` 直接放在 `MacOS/` 根目录。）
 
 #### Linux
 
@@ -190,9 +193,13 @@ try {
   // ...
 } finally {
   player.showOverlay();
-  player.focusOverlay();
+  // 若需恢复快捷键焦点：
+  player.focusOverlay({ stealWindowFocus: true });
 }
 ```
+
+> [!NOTE]
+> **macOS — overlay 悬停显示控制栏**：非焦点窗口在 macOS 上默认收不到 DOM `mouseenter`（与 Windows 不同）。库在 overlay 可见时会用主进程光标轮询补偿；应用完全失焦且其他窗口盖住视频区时不会误显示控制栏。播放列表切歌等主界面操作**请勿**调用 `focusOverlay()`，否则子窗会抢焦点、主窗失活（交通灯变灰）。
 
 ## API
 
@@ -204,20 +211,20 @@ try {
 
 - `embed()` / `isEmbedded()` / `destroy()`
 - `setContainer()` / `setPageFullscreen()` / `setFullScreen()`（及 `isPageFullscreen()` / `isFullScreen()`）
-- `hideOverlay()` / `showOverlay()` / `focusOverlay()`（系统文件对话框、播放列表切歌后恢复 overlay 焦点，见上文「集成注意」）
+- `hideOverlay()` / `showOverlay()` / `focusOverlay(options?)` — 默认不抢主窗焦点；`{ stealWindowFocus: true }` 仅在需要 overlay 快捷键时（见「集成注意」）
 
 #### **libVLC 播放控制**（`embed()` 后可用）
 
-| 类别 | 方法                                                                                                                                                                                   |
-| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 媒体 | `setSource`, `getMediaInfo`, `parseMedia`, `getMediaMetadata` / `getMediaMetadataResult`, `getMediaTracks` / `getMediaTracksResult`, `unloadMedia` |
+| 类别 | 方法                                                                                                                                                                                                          |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 媒体 | `setSource`, `getMediaInfo`, `parseMedia`, `getMediaMetadata` / `getMediaMetadataResult`, `getMediaTracks` / `getMediaTracksResult`, `unloadMedia`                                                            |
 | 播放 | `play`, `pause`, `stop`, `togglePause`, `setPaused`, `isPlaying`, `getState`, `getRate`, `setRate`, `setPlaylist`, `playPrevious`, `playNext`, `hasPrevious`, `hasNext`, `getPlaybackMode`, `setPlaybackMode` |
-| 进度 | `getTime`, `setTime`, `getLength`, `getPosition`, `setPosition`, `isSeekable`                                                                                                          |
-| 音量 | `getVolume`, `setVolume`, `toggleMute`, `getMute`, `setMute`, `getAudioDelay`, `setAudioDelay`                                                                                         |
-| 轨道 | `getAudioTracks`, `getAudioTrack`, `setAudioTrack`, `getSubtitleTracks`, `getSubtitleTrack`, `setSubtitleTrack`, `addSubtitleFile`, `getVideoTracks`, `getVideoTrack`, `setVideoTrack` |
-| 视频 | `getScale`, `setScale`, `getAspectRatio`, `setAspectRatio`, `setCropGeometry`, `getVideoSize`, `takeSnapshot`                                                                          |
-| 章节 | `getChapter`, `setChapter`, `nextChapter`, `previousChapter`, `getTitleDescriptions` 等                                                                                                |
-| 其它 | `navigate`, `setVlcFullscreen`, `setRole`, `getFps`, `hasVout`                                                                                                                         |
+| 进度 | `getTime`, `setTime`, `getLength`, `getPosition`, `setPosition`, `isSeekable`                                                                                                                                 |
+| 音量 | `getVolume`, `setVolume`, `toggleMute`, `getMute`, `setMute`, `getAudioDelay`, `setAudioDelay`                                                                                                                |
+| 轨道 | `getAudioTracks`, `getAudioTrack`, `setAudioTrack`, `getSubtitleTracks`, `getSubtitleTrack`, `setSubtitleTrack`, `addSubtitleFile`, `getVideoTracks`, `getVideoTrack`, `setVideoTrack`                        |
+| 视频 | `getScale`, `setScale`, `getAspectRatio`, `setAspectRatio`, `setCropGeometry`, `getVideoSize`, `takeSnapshot`                                                                                                 |
+| 章节 | `getChapter`, `setChapter`, `nextChapter`, `previousChapter`, `getTitleDescriptions` 等                                                                                                                       |
+| 其它 | `navigate`, `setVlcFullscreen`, `setRole`, `getFps`, `hasVout`                                                                                                                                                |
 
 #### 常量
 
@@ -269,8 +276,11 @@ const audio = player.getAudioTracks().find((t) => t.id === audioId);
 
 ```ts
 const { data: meta, code, message } = player.getMediaMetadataResult();
-const { data: tracks, code: tracksCode, message: tracksMessage } =
-  player.getMediaTracksResult();
+const {
+  data: tracks,
+  code: tracksCode,
+  message: tracksMessage,
+} = player.getMediaTracksResult();
 // 未 parse 时 `code` 为 MEDIA_NOT_PARSED；`code` 非空表示结果可能不完整——请按 `code` 映射界面文案
 ```
 
@@ -562,11 +572,11 @@ example/src/               # Electron 示例（主进程按模块拆分）
 
 ![工作原理](./How_It_Works.jpg)
 
-| 层级 | 作用 |
-| ---- | ---- |
-| **页面目标元素（Page container element）** | 渲染进程页面中的 DOM 元素（构造选项 `container`，如 `#stage`）。库会测量该元素的边界，并将视频窗口与 overlay 对齐到该区域。 |
-| **libVLC 嵌入层（libVLC embed layer）** | 由 N-API 绑定创建的原生子窗口。libVLC 在此表面解码并输出画面。 |
-| **Overlay 控制层（Overlay control layer）** | 与容器对齐的透明子 `BrowserWindow`，加载内置 HTML/CSS/JS 控制条。用户操作与状态更新经 IPC 与主进程通信。 |
+| 层级                                        | 作用                                                                                                                        |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **页面目标元素（Page container element）**  | 渲染进程页面中的 DOM 元素（构造选项 `container`，如 `#stage`）。库会测量该元素的边界，并将视频窗口与 overlay 对齐到该区域。 |
+| **libVLC 嵌入层（libVLC embed layer）**     | 由 N-API 绑定创建的原生子窗口。libVLC 在此表面解码并输出画面。                                                              |
+| **Overlay 控制层（Overlay control layer）** | 与容器对齐的透明子 `BrowserWindow`，加载内置 HTML/CSS/JS 控制条。用户操作与状态更新经 IPC 与主进程通信。                    |
 
 页面加载完成后调用 `embed()` 即可创建并对齐上述三层。容器尺寸变化、页面全屏与窗口全屏由库自动处理。
 

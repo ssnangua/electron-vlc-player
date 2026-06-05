@@ -189,6 +189,16 @@ void PlatformSetChildOffscreen(PlayerState *state, bool offscreen) {
                   state->embed_visible, state->embed_stack_below, state->embed_offscreen);
 }
 
+bool PlatformIsScreenPointOverWindow(const uint8_t *handle_buf, size_t handle_len, int screenX,
+                                     int screenY) {
+  HWND hwnd = BufferToHwnd(handle_buf, handle_len);
+  if (!IsValidHwnd(hwnd)) return false;
+  POINT pt = {screenX, screenY};
+  HWND at = WindowFromPoint(pt);
+  if (!IsValidHwnd(at)) return false;
+  return at == hwnd || IsChild(hwnd, at) != 0;
+}
+
 void PlatformRaise(PlayerState *state) {
   HWND browser = static_cast<HWND>(state->browser_handle);
   HWND child = static_cast<HWND>(state->child_handle);

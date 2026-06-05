@@ -4,9 +4,16 @@ import path from 'node:path';
 
 const LIBVLC_NAMES: Record<string, string[]> = {
   win32: ['libvlc.dll'],
-  darwin: ['libvlc.dylib'],
+  darwin: ['libvlc.dylib', 'libvlc.5.dylib'],
   linux: ['libvlc.so', 'libvlc.so.5'],
 };
+
+/** macOS VLC.app 3.0.x 起常将 dylib 放在 Contents/MacOS/lib/，plugins 仍在 MacOS/。 */
+const DARWIN_LIB_SUBDIR = 'lib';
+
+function darwinLibSearchDirs(baseDir: string): string[] {
+  return [baseDir, path.join(baseDir, DARWIN_LIB_SUBDIR)];
+}
 
 function libVlcProbeCandidates(): string[] {
   switch (process.platform) {
@@ -39,7 +46,11 @@ function libVlcProbeCandidates(): string[] {
 function hasLibVlcAt(dir: string): boolean {
   const candidates = LIBVLC_NAMES[process.platform];
   if (!candidates) return false;
-  return candidates.some((name) => fs.existsSync(path.join(dir, name)));
+  const searchDirs =
+    process.platform === 'darwin' ? darwinLibSearchDirs(dir) : [dir];
+  return searchDirs.some((searchDir) =>
+    candidates.some((name) => fs.existsSync(path.join(searchDir, name))),
+  );
 }
 
 /** macOS: accept VLC.app bundle paths and resolve to Contents/MacOS. */
@@ -53,7 +64,18 @@ function vlcDirResolveCandidates(normalized: string): string[] {
   if (normalized.endsWith(`${path.sep}Contents`)) {
     out.push(path.join(normalized, 'MacOS'));
   }
+  if (normalized.endsWith(`${path.sep}${DARWIN_LIB_SUBDIR}`)) {
+    out.push(path.dirname(normalized));
+  }
   return [...new Set(out)];
+}
+
+/** macOS：库在 lib/ 子目录时，vlcDir 根目录为含 plugins 的 MacOS 目录。 */
+function darwinVlcRootForLibDir(libDir: string, macOsDir: string): string {
+  if (libDir.endsWith(`${path.sep}${DARWIN_LIB_SUBDIR}`)) {
+    return path.dirname(libDir);
+  }
+  return macOsDir;
 }
 
 /**
@@ -73,10 +95,16 @@ export function resolveVlcDir(vlcDir: string): string {
   }
 
   for (const dir of vlcDirResolveCandidates(normalized)) {
-    for (const name of candidates) {
-      const lib = path.join(dir, name);
-      if (fs.existsSync(lib)) {
-        return dir;
+    const searchDirs =
+      process.platform === 'darwin' ? darwinLibSearchDirs(dir) : [dir];
+    for (const searchDir of searchDirs) {
+      for (const name of candidates) {
+        const lib = path.join(searchDir, name);
+        if (fs.existsSync(lib)) {
+          return process.platform === 'darwin'
+            ? darwinVlcRootForLibDir(searchDir, dir)
+            : dir;
+        }
       }
     }
   }

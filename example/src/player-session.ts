@@ -111,7 +111,6 @@ export async function recreatePlayer(): Promise<void> {
 export function restoreOverlayFocus(p: VlcPlayer | null): void {
   if (!p?.isEmbedded()) return;
   p.showOverlay();
-  p.focusOverlay();
 }
 
 export function playPath(filePath: string): void {
@@ -122,5 +121,4 @@ export function playPath(filePath: string): void {
   p.notifyLayoutChange();
   updateWindowTitle(filePath);
   scheduleMediaParse(filePath);
-  p.focusOverlay();
 }

@@ -100,7 +100,9 @@ npm run smoke-play -- "C:\path\to\video.mkv"
 
 ## VLC path
 
-On startup the example calls **`probeDefaultVlcDir()`**. If nothing is found, pick the VLC directory from the top bar (still validated via `resolveVlcDir`).
+On startup the example calls **`probeDefaultVlcDir()`**. If nothing is found, pick the VLC directory from the top bar (still validated via `resolveVlcDir`). On macOS you can choose `/Applications/VLC.app` or `Contents/MacOS` (VLC 3.0.x often puts dylibs in `MacOS/lib/`; the library resolves the correct `vlcDir`).
+
+When developing from the repo root, run **`npm run link`** then **`npm run rebuild`** first — otherwise the example may still use a cached npm copy of the library.
 
 ## Seek-bar hover preview (ffmpeg)
 

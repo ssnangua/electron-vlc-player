@@ -376,8 +376,28 @@ bool LoadLibVlcFromDir(const std::string &vlcDirUtf8, const std::string &avcodec
     return false;
   }
 #elif defined(__APPLE__)
-  const std::string libPath = JoinPath(vlcDirUtf8, "libvlc.dylib");
+  // VLC macOS 包将 dylib 放在 vlcDir/lib/；libvlc 经 @rpath 依赖 libvlccore，
+  // 从 Electron 进程 dlopen 时 @rpath 不会指向 VLC，须先以绝对路径预载 libvlccore。
+  static auto preloadLibVlcCore = [](const std::string &dir) {
+    const char *names[] = {"libvlccore.dylib", "libvlccore.9.dylib"};
+    for (const char *name : names) {
+      const std::string corePath = JoinPath(dir, name);
+      if (dlopen(corePath.c_str(), RTLD_LAZY | RTLD_GLOBAL) != nullptr) {
+        return;
+      }
+    }
+  };
+
+  const std::string libSubDir = JoinPath(vlcDirUtf8, "lib");
+  preloadLibVlcCore(vlcDirUtf8);
+  preloadLibVlcCore(libSubDir);
+
+  std::string libPath = JoinPath(vlcDirUtf8, "libvlc.dylib");
   g_libvlc_module = dlopen(libPath.c_str(), RTLD_LAZY | RTLD_GLOBAL);
+  if (!g_libvlc_module) {
+    libPath = JoinPath(libSubDir, "libvlc.dylib");
+    g_libvlc_module = dlopen(libPath.c_str(), RTLD_LAZY | RTLD_GLOBAL);
+  }
   if (!g_libvlc_module) {
     if (error) *error = std::string("Failed to load libvlc.dylib: ") + dlerror();
     return false;

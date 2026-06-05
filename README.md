@@ -42,10 +42,10 @@ player.setRate(1.25);
 
 ### Operating systems
 
-| Platform    | Minimum (recommended)                                                         | Notes                                                                                         |
-| ----------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| **Windows** | **Windows 10** or later                                                       |                                                                                               |
-| **macOS**   | **macOS 11 Big Sur** or later                                                 |                                                                                               |
+| Platform    | Minimum (recommended)                                                         | Notes                                                                                           |
+| ----------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **Windows** | **Windows 10** or later                                                       |                                                                                                 |
+| **macOS**   | **macOS 11 Big Sur** or later                                                 |                                                                                                 |
 | **Linux**   | **Ubuntu 20.04** / **Debian 11** / **Fedora 34** or equivalent (glibc ≥ 2.31) | Embedding requires **X11** (`libX11`); pure Wayland is untested — use **XWayland** in practice. |
 
 ### Electron / Node.js
@@ -78,11 +78,11 @@ You also need:
 - Platform **C++ build tools** (see table below)
 - **libVLC built for the same architecture** as your Electron app (e.g. arm64 VLC on Apple Silicon)
 
-| Platform    | Build dependencies                                                |
-| ----------- | ----------------------------------------------------------------- |
+| Platform    | Build dependencies                                                   |
+| ----------- | -------------------------------------------------------------------- |
 | **Windows** | Visual Studio Build Tools (“Desktop development with C++”), Python 3 |
-| **macOS**   | Xcode Command Line Tools                                          |
-| **Linux**   | `build-essential`, `libx11-dev`, Python 3                         |
+| **macOS**   | Xcode Command Line Tools                                             |
+| **Linux**   | `build-essential`, `libx11-dev`, Python 3                            |
 
 Which platform/arch combinations work in practice depends on **Electron’s official support** and whether you can supply a matching libVLC for that arch.
 
@@ -121,14 +121,17 @@ The `vlcDir` folder must contain the platform libVLC library and a `plugins` dir
 
 #### macOS
 
-Usually the `MacOS` folder inside VLC.app, e.g.:
+Point `vlcDir` at **`Contents/MacOS`** (sibling of `plugins/`). VLC 3.0.x installers often place dylibs under `lib/`; the library resolves that automatically. `probeDefaultVlcDir()` / `resolveVlcDir()` also accept `VLC.app`, `MacOS`, or `MacOS/lib` paths.
 
 ```text
 /Applications/VLC.app/Contents/MacOS/
-  libvlc.dylib
-  libvlccore.dylib
+  lib/
+    libvlc.dylib
+    libvlccore.dylib
   plugins/
 ```
+
+(Some older layouts may still place `libvlc.dylib` directly in `MacOS/`.)
 
 #### Linux
 
@@ -190,9 +193,13 @@ try {
   // ...
 } finally {
   player.showOverlay();
-  player.focusOverlay();
+  // Restore keyboard focus:
+  player.focusOverlay({ stealWindowFocus: true });
 }
 ```
+
+> [!NOTE]
+> **macOS — overlay hover to show controls**: Unfocused windows do not receive DOM `mouseenter` on macOS (unlike Windows). While the overlay is visible, the library compensates via main-process cursor polling; when another app fully covers the video region, controls are not shown spuriously. For playlist switches and other main-window UI actions, **do not** call `focusOverlay()` — it activates the child window and deactivates the main window (grey traffic-light buttons).
 
 ## API
 
@@ -204,20 +211,20 @@ try {
 
 - `embed()` / `isEmbedded()` / `destroy()`
 - `setContainer()` / `setPageFullscreen()` / `setFullScreen()` (and `isPageFullscreen()` / `isFullScreen()`)
-- `hideOverlay()` / `showOverlay()` / `focusOverlay()` (file dialogs, refocus after playlist changes — see “Integration notes”)
+- `hideOverlay()` / `showOverlay()` / `focusOverlay(options?)` — does not steal main-window focus by default; `{ stealWindowFocus: true }` only when overlay keyboard shortcuts are needed (see “Integration notes”)
 
 #### **libVLC playback** (after `embed()`)
 
-| Category   | Methods                                                                                                                                                                                   |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Media      | `setSource`, `getMediaInfo`, `parseMedia`, `getMediaMetadata` / `getMediaMetadataResult`, `getMediaTracks` / `getMediaTracksResult`, `unloadMedia`                                        |
-| Playback   | `play`, `pause`, `stop`, `togglePause`, `setPaused`, `isPlaying`, `getState`, `getRate`, `setRate`, `setPlaylist`, `playPrevious`, `playNext`, `hasPrevious`, `hasNext`, `getPlaybackMode`, `setPlaybackMode` |
-| Progress   | `getTime`, `setTime`, `getLength`, `getPosition`, `setPosition`, `isSeekable`                                                                                                             |
-| Volume     | `getVolume`, `setVolume`, `toggleMute`, `getMute`, `setMute`, `getAudioDelay`, `setAudioDelay`                                                                                            |
-| Tracks     | `getAudioTracks`, `getAudioTrack`, `setAudioTrack`, `getSubtitleTracks`, `getSubtitleTrack`, `setSubtitleTrack`, `addSubtitleFile`, `getVideoTracks`, `getVideoTrack`, `setVideoTrack`   |
-| Video      | `getScale`, `setScale`, `getAspectRatio`, `setAspectRatio`, `setCropGeometry`, `getVideoSize`, `takeSnapshot`                                                                             |
-| Chapters   | `getChapter`, `setChapter`, `nextChapter`, `previousChapter`, `getTitleDescriptions`, etc.                                                                                                |
-| Other      | `navigate`, `setVlcFullscreen`, `setRole`, `getFps`, `hasVout`                                                                                                                            |
+| Category | Methods                                                                                                                                                                                                       |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Media    | `setSource`, `getMediaInfo`, `parseMedia`, `getMediaMetadata` / `getMediaMetadataResult`, `getMediaTracks` / `getMediaTracksResult`, `unloadMedia`                                                            |
+| Playback | `play`, `pause`, `stop`, `togglePause`, `setPaused`, `isPlaying`, `getState`, `getRate`, `setRate`, `setPlaylist`, `playPrevious`, `playNext`, `hasPrevious`, `hasNext`, `getPlaybackMode`, `setPlaybackMode` |
+| Progress | `getTime`, `setTime`, `getLength`, `getPosition`, `setPosition`, `isSeekable`                                                                                                                                 |
+| Volume   | `getVolume`, `setVolume`, `toggleMute`, `getMute`, `setMute`, `getAudioDelay`, `setAudioDelay`                                                                                                                |
+| Tracks   | `getAudioTracks`, `getAudioTrack`, `setAudioTrack`, `getSubtitleTracks`, `getSubtitleTrack`, `setSubtitleTrack`, `addSubtitleFile`, `getVideoTracks`, `getVideoTrack`, `setVideoTrack`                        |
+| Video    | `getScale`, `setScale`, `getAspectRatio`, `setAspectRatio`, `setCropGeometry`, `getVideoSize`, `takeSnapshot`                                                                                                 |
+| Chapters | `getChapter`, `setChapter`, `nextChapter`, `previousChapter`, `getTitleDescriptions`, etc.                                                                                                                    |
+| Other    | `navigate`, `setVlcFullscreen`, `setRole`, `getFps`, `hasVout`                                                                                                                                                |
 
 #### Constants
 
@@ -269,8 +276,11 @@ After parse, `getMediaMetadataResult()` returns metadata; while playing, `getMed
 
 ```ts
 const { data: meta, code, message } = player.getMediaMetadataResult();
-const { data: tracks, code: tracksCode, message: tracksMessage } =
-  player.getMediaTracksResult();
+const {
+  data: tracks,
+  code: tracksCode,
+  message: tracksMessage,
+} = player.getMediaTracksResult();
 // If not parsed, `code` is MEDIA_NOT_PARSED; non-empty `code` means incomplete data — map `code` to your UI strings
 ```
 
@@ -456,13 +466,13 @@ Without a valid ffmpeg path, the **Generate preview** button is hidden.
 {seekPreviewCacheDir}/{mediaKey}/sprite.jpg
 ```
 
-| API                                                                                     | Description                                      |
-| --------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| `ffmpegPath` (option) / `setFfmpegPath` / `getFfmpegPath`                               | ffmpeg executable path (process-wide)            |
-| `seekPreviewCacheDir` (option) / `setSeekPreviewCacheDir` / `getSeekPreviewCacheDir`    | Preview sprite cache root (process-wide)         |
-| `clearSeekPreviewCacheDir()`                                                            | Cancel in-flight generation and clear cache root |
-| `generateSeekPreviewSprite()`                                                           | Generate sprite for current local media          |
-| `cancelSeekPreviewSprite()`                                                             | Cancel generation (removes `.work/` only)        |
+| API                                                                                  | Description                                      |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------ |
+| `ffmpegPath` (option) / `setFfmpegPath` / `getFfmpegPath`                            | ffmpeg executable path (process-wide)            |
+| `seekPreviewCacheDir` (option) / `setSeekPreviewCacheDir` / `getSeekPreviewCacheDir` | Preview sprite cache root (process-wide)         |
+| `clearSeekPreviewCacheDir()`                                                         | Cancel in-flight generation and clear cache root |
+| `generateSeekPreviewSprite()`                                                        | Generate sprite for current local media          |
+| `cancelSeekPreviewSprite()`                                                          | Cancel generation (removes `.work/` only)        |
 
 Changing media or calling `destroy()` **does not** delete finished sprites; call `clearSeekPreviewCacheDir()` or delete directories manually. If sprites exist on disk but ffmpeg is not configured: **button hidden**, **hover still uses cache**.
 
@@ -507,25 +517,25 @@ When the overlay has focus, mouse and keyboard shortcuts are available.
 
 **Mouse**
 
-| Action      | Effect           |
-| ----------- | ---------------- |
-| Mouse wheel | Volume ±1%       |
-| Click       | Play / pause     |
-| Double-click| Toggle fullscreen|
+| Action       | Effect            |
+| ------------ | ----------------- |
+| Mouse wheel  | Volume ±1%        |
+| Click        | Play / pause      |
+| Double-click | Toggle fullscreen |
 
 **Keyboard**
 
-| Key                 | Effect                          |
-| ------------------- | ------------------------------- |
-| `Space`             | Play / pause                    |
-| `T`                 | Toggle page fullscreen          |
-| `F`                 | Toggle fullscreen               |
+| Key                 | Effect                            |
+| ------------------- | --------------------------------- |
+| `Space`             | Play / pause                      |
+| `T`                 | Toggle page fullscreen            |
+| `F`                 | Toggle fullscreen                 |
 | `Esc`               | Exit fullscreen / page fullscreen |
-| `←` / `→`           | Seek −10s / +10s                |
-| `Shift` + `←` / `→` | Seek −3s / +3s                  |
-| `Ctrl` + `←` / `→`  | Seek −1m / +1m                  |
-| `Alt` + `←` / `→`   | Seek −1 / +1 frame              |
-| `↑` / `↓`           | Volume +10% / −10%              |
+| `←` / `→`           | Seek −10s / +10s                  |
+| `Shift` + `←` / `→` | Seek −3s / +3s                    |
+| `Ctrl` + `←` / `→`  | Seek −1m / +1m                    |
+| `Alt` + `←` / `→`   | Seek −1 / +1 frame                |
+| `↑` / `↓`           | Volume +10% / −10%                |
 
 ## Source layout
 
@@ -562,11 +572,11 @@ The player stacks three layers inside your Electron window:
 
 ![How It Works](./How_It_Works.jpg)
 
-| Layer | Role |
-| ----- | ---- |
-| **Page container element** | A DOM element in your renderer page (`container`, e.g. `#stage`). The library measures its bounds and anchors both the video surface and overlay to this region. |
-| **libVLC embed layer** | A native child window created by the N-API binding. libVLC decodes and renders video into this surface. |
-| **Overlay control layer** | A transparent child `BrowserWindow` aligned with the container, loaded with built-in HTML/CSS/JS controls. User input and state updates are bridged to the main process via IPC. |
+| Layer                      | Role                                                                                                                                                                             |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Page container element** | A DOM element in your renderer page (`container`, e.g. `#stage`). The library measures its bounds and anchors both the video surface and overlay to this region.                 |
+| **libVLC embed layer**     | A native child window created by the N-API binding. libVLC decodes and renders video into this surface.                                                                          |
+| **Overlay control layer**  | A transparent child `BrowserWindow` aligned with the container, loaded with built-in HTML/CSS/JS controls. User input and state updates are bridged to the main process via IPC. |
 
 Call `embed()` after the page loads to create and align these layers. Container resize, page fullscreen, and window fullscreen are handled automatically.
 
