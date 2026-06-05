@@ -8,6 +8,8 @@ export class OverlaySeekController {
   overlaySeekSyncBlocked = false;
   overlaySeekTargetMs: number | null = null;
   overlaySeekSettlingUntil = 0;
+  /** Brief pause-before-seek while playing; overlay should keep showing pause. */
+  overlaySeekPauseForResume = false;
 
   constructor(private readonly host: VlcPlayerHost) {}
 
@@ -68,6 +70,7 @@ export class OverlaySeekController {
     this.overlaySeekTargetMs = null;
     this.overlaySeekSettlingUntil = 0;
     this.overlaySeekSyncBlocked = false;
+    this.overlaySeekPauseForResume = false;
     if (this.overlaySeekSyncTimer) {
       clearTimeout(this.overlaySeekSyncTimer);
       this.overlaySeekSyncTimer = null;
@@ -137,6 +140,7 @@ export class OverlaySeekController {
     try {
       resumeAfter = b.isPlaying(this.host.playerId);
       if (resumeAfter) {
+        this.overlaySeekPauseForResume = true;
         b.setPause(this.host.playerId, true);
       }
     } catch {
@@ -162,6 +166,7 @@ export class OverlaySeekController {
         } catch {
           // ignore
         }
+        this.overlaySeekPauseForResume = false;
         finish();
       }, 80);
       return;

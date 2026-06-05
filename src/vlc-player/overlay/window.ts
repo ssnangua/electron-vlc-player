@@ -482,8 +482,15 @@ export class OverlayWindowController {
   private readonly onOverlayVlcPausedOrStopped = (): void => {
     if (this.host.destroyed || this.host.playerId < 0) return;
     if (this.host.replayInProgress) return;
+    if (this.host.overlaySeek.overlaySeekPauseForResume) return;
     this.host.pushState();
   };
+
+  /** Keep pause icon during brief pause-before-seek while playback will resume. */
+  private overlayPlayingForUi(nativePlaying: boolean): boolean {
+    if (this.host.overlaySeek.overlaySeekPauseForResume) return true;
+    return nativePlaying;
+  }
 
   private readonly onOverlayVlcTrackChanged = (): void => {
     if (this.host.destroyed || this.host.playerId < 0) return;
@@ -562,6 +569,7 @@ export class OverlayWindowController {
     } catch {
       // ignore
     }
+    playing = this.overlayPlayingForUi(playing);
 
     if (!playing) {
       this.host.handlePlaybackEnd();
@@ -767,6 +775,7 @@ export class OverlayWindowController {
       } catch {
         // ignore
       }
+      playing = this.overlayPlayingForUi(playing);
       this.sendOverlayState(
         this.buildOverlayUiState(
           playing,
@@ -833,6 +842,7 @@ export class OverlayWindowController {
     } catch {
       // ignore
     }
+    playing = this.overlayPlayingForUi(playing);
 
     this.sendOverlayState(
       this.buildOverlayUiState(
