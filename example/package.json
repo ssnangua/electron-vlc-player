@@ -19,7 +19,7 @@
     "smoke-play": "node scripts/run-smoke-play.cjs"
   },
   "dependencies": {
-    "electron-vlc-player": "^1.0.0"
+    "electron-vlc-player": "^1.0.2"
   },
   "devDependencies": {
     "@electron/rebuild": "^3.7.1",
